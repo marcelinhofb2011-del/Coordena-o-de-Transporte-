@@ -1,4 +1,4 @@
-const CACHE_NAME = 'intelligence-hub-v1';
+const CACHE_NAME = 'coord-transporte-v2';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
