@@ -1,0 +1,121 @@
+{
+  "entities": {
+    "Congregation": {
+      "title": "Congregation",
+      "description": "Represents a church congregation or group.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the congregation" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "Bus": {
+      "title": "Bus",
+      "description": "Represents a bus unit available for travel.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "number": { "type": "string" },
+        "company": { "type": "string" },
+        "driver": { "type": "string" },
+        "driverPhone": { "type": "string" },
+        "capacity": { "type": "number" },
+        "plate": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "capacity"]
+    },
+    "Reservation": {
+      "title": "Reservation",
+      "description": "Represents a group or individual reservation.",
+      "type": "object",
+      "properties": {
+        "passengers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "document": { "type": "string" }
+            }
+          }
+        },
+        "days": { "type": "array", "items": { "type": "string" } },
+        "busId": { "type": "string" },
+        "congregationId": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "paymentStatus": { "type": "string", "enum": ["PENDENTE", "PAGO", "PARCIAL"] },
+        "unitValue": { "type": "number" },
+        "totalValue": { "type": "number" },
+        "amountPaid": { "type": "number" },
+        "balance": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["passengers", "busId", "congregationId", "totalValue"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global settings for the application.",
+      "type": "object",
+      "properties": {
+        "ticketPrice": { "type": "number" }
+      }
+    },
+    "AppUser": {
+      "title": "AppUser",
+      "description": "Represents a user of the management system.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "COORDINATOR", "USER"] },
+        "congregationId": { "type": "string", "description": "Linked congregation for coordinators" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "System activity logs.",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "targetId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["action", "userId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "congregations": {
+      "schema": "Congregation",
+      "description": "List of congregations"
+    },
+    "buses": {
+      "schema": "Bus",
+      "description": "List of available buses"
+    },
+    "reservations": {
+      "schema": "Reservation",
+      "description": "List of passenger reservations"
+    },
+    "users": {
+      "schema": "AppUser",
+      "description": "List of system users and their roles"
+    },
+    "settings": {
+      "schema": "AppSettings",
+      "description": "Global application settings"
+    },
+    "audit_logs": {
+      "schema": "AuditLog",
+      "description": "System audit logs for transparency"
+    }
+  }
+}

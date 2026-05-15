@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMasterAdmin() {
+      // Identity verification for the main admin without get() for list performance
+      return isSignedIn() && 
+             request.auth.token.email == 'marcelinhofb2011@gmail.com' && 
+             request.auth.token.email_verified == true;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isMasterAdmin() || (isSignedIn() && getUserData().role == 'ADMIN');
+    }
+
+    function isCoordinator() {
+      return isSignedIn() && getUserData().role == 'COORDINATOR';
+    }
+
+    function isSameCongregation(congregationId) {
+      return isCoordinator() && getUserData().congregationId == congregationId;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.role == (request.auth.token.email == 'marcelinhofb2011@gmail.com' ? 'ADMIN' : 'USER');
+      allow update, delete: if isAdmin();
+    }
+
+    match /congregations/{congId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /buses/{busId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /reservations/{resId} {
+      // GET: Single document access
+      allow get: if isSignedIn() && (
+        isAdmin() || 
+        isSameCongregation(resource.data.congregationId) || 
+        resource.data.createdBy == request.auth.uid
+      );
+      
+      // LIST: Query enforcement. Master admin and admins skip, others must filter by createdBy or congregationId correctly.
+      allow list: if isSignedIn() && (
+        isAdmin() || 
+        resource.data.createdBy == request.auth.uid ||
+        (isCoordinator() && resource.data.congregationId == getUserData().congregationId)
+      );
+
+      allow create: if isSignedIn() && 
+                    request.resource.data.createdBy == request.auth.uid &&
+                    request.resource.data.amountPaid is number &&
+                    request.resource.data.totalValue is number;
+
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        isSameCongregation(existing().congregationId) || 
+        existing().createdBy == request.auth.uid
+      );
+
+      allow delete: if isAdmin() || isSameCongregation(existing().congregationId);
+    }
+
+    match /audit_logs/{logId} {
+      allow list, get: if isAdmin();
+      allow create: if isSignedIn();
+    }
+
+    function existing() { return resource.data; }
+  }
+}
