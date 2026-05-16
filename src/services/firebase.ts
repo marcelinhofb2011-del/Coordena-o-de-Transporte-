@@ -3,6 +3,8 @@ import {
   getAuth, 
   GoogleAuthProvider, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut, 
   onAuthStateChanged, 
   User, 
@@ -20,6 +22,11 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 const microsoftProvider = new OAuthProvider('microsoft.com');
+
+// Utility to detect mobile
+export const isMobile = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
 
 export async function createAuditLog(action: LogAction, details: string, targetId: string) {
   if (!auth.currentUser) return;
@@ -55,8 +62,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 export const loginWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
+    if (isMobile()) {
+      await signInWithRedirect(auth, googleProvider);
+    } else {
+      const result = await signInWithPopup(auth, googleProvider);
+      return result.user;
+    }
   } catch (error) {
     console.error('Login error:', error);
     throw error;
@@ -101,8 +112,12 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
 
 export const loginWithMicrosoft = async () => {
   try {
-    const result = await signInWithPopup(auth, microsoftProvider);
-    return result.user;
+    if (isMobile()) {
+      await signInWithRedirect(auth, microsoftProvider);
+    } else {
+      const result = await signInWithPopup(auth, microsoftProvider);
+      return result.user;
+    }
   } catch (error) {
     console.error('Microsoft login error:', error);
     throw error;
