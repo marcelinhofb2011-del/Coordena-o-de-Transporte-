@@ -17,12 +17,11 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // Direct check to avoid recursion if possible, but keep it robust
-      return isMasterAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN');
+      return isMasterAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'ADMIN');
     }
 
     function isCoordinator() {
-      return isAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'COORDINATOR');
+      return isMasterAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['ADMIN', 'COORDINATOR']);
     }
 
     function canSell() {

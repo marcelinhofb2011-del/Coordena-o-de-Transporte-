@@ -53,18 +53,27 @@ const NewReservation: React.FC = () => {
 
     const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
       if (docSnap.exists()) {
-        setGlobalPrice(docSnap.data().ticketPrice || 0);
+        const data = docSnap.data();
+        setGlobalPrice(data.ticketPrice || 0);
+      } else {
+        console.warn('Settings global document not found');
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'settings/global');
     });
 
     const qBuses = query(collection(db, 'buses'), orderBy('name'));
     const unsubBuses = onSnapshot(qBuses, (snap) => {
       setBuses(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bus)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'buses');
     });
 
     const qCongs = query(collection(db, 'congregations'), orderBy('name'));
     const unsubCongs = onSnapshot(qCongs, (snap) => {
       setCongregations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Congregation)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'congregations');
     });
 
     return () => {
