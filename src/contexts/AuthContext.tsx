@@ -17,19 +17,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        let data = await getUserData(user.uid);
-        if (!data) {
-          data = await createInitialUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      try {
+        setUser(user);
+        if (user) {
+          let data = await getUserData(user.uid);
+          if (!data) {
+            data = await createInitialUser(user);
+          }
+          setAppUser(data);
+        } else {
+          setAppUser(null);
         }
-        setAppUser(data);
-      } else {
-        setAppUser(null);
+      } catch (error) {
+        console.error('Auth state error:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
+
+    return () => unsubscribe();
   }, []);
 
   return (
