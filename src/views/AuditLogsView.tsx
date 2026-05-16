@@ -2,14 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { Activity, User, Calendar, Tag, Info, AlertCircle } from 'lucide-react';
 import { db } from '../services/firebase';
-import { AuditLog, LogAction } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { UserRole, AuditLog, LogAction } from '../types';
 import { cn } from '../lib/utils';
 
 export default function AuditLogsView() {
+  const { appUser } = useAuth();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (appUser?.role !== UserRole.ADMIN) return;
+
     const q = query(
       collection(db, 'audit_logs'),
       orderBy('createdAt', 'desc'),
@@ -22,7 +26,21 @@ export default function AuditLogsView() {
     });
 
     return unsub;
-  }, []);
+  }, [appUser]);
+
+  if (appUser?.role !== UserRole.ADMIN) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center">
+          <Activity size={40} />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900">Acesso Restrito</h2>
+        <p className="text-slate-500 max-w-xs font-medium">
+          Apenas administradores podem visualizar os logs de auditoria do sistema.
+        </p>
+      </div>
+    );
+  }
 
   const getActionIcon = (action: LogAction) => {
     switch (action) {

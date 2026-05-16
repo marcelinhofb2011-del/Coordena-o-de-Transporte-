@@ -99,7 +99,7 @@ const LoginView: React.FC = () => {
                   required={isRegister}
                   type="text"
                   placeholder="Nome completo"
-                  className="w-full px-0 py-2.5 bg-transparent border-b border-[#8a8a8a] outline-none text-sm text-[#1b1b1b] focus:border-[#0067b8] transition-all placeholder:text-slate-400"
+                  className="w-full px-0 py-2.5 bg-transparent border-b-2 border-slate-900 outline-none text-sm text-[#1b1b1b] focus:border-[#0067b8] transition-all placeholder:text-slate-400"
                   value={name}
                   onChange={e => setName(e.target.value)}
                 />
@@ -112,7 +112,7 @@ const LoginView: React.FC = () => {
               required
               type="email"
               placeholder="E-mail ou telefone"
-              className="w-full px-0 py-2.5 bg-transparent border-b border-[#8a8a8a] outline-none text-sm text-[#1b1b1b] focus:border-[#0067b8] transition-all placeholder:text-slate-400"
+              className="w-full px-0 py-2.5 bg-transparent border-b-2 border-slate-900 outline-none text-sm text-[#1b1b1b] focus:border-[#0067b8] transition-all placeholder:text-slate-400"
               value={email}
               onChange={e => setEmail(e.target.value)}
             />
@@ -123,7 +123,7 @@ const LoginView: React.FC = () => {
               required
               type="password"
               placeholder="Senha"
-              className="w-full px-0 py-2.5 bg-transparent border-b border-[#8a8a8a] outline-none text-sm text-[#1b1b1b] focus:border-[#0067b8] transition-all placeholder:text-slate-400"
+              className="w-full px-0 py-2.5 bg-transparent border-b-2 border-slate-900 outline-none text-sm text-[#1b1b1b] focus:border-[#0067b8] transition-all placeholder:text-slate-400"
               value={password}
               onChange={e => setPassword(e.target.value)}
             />

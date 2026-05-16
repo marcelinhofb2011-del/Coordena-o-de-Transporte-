@@ -62,12 +62,8 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 export const loginWithGoogle = async () => {
   try {
-    if (isMobile()) {
-      await signInWithRedirect(auth, googleProvider);
-    } else {
-      const result = await signInWithPopup(auth, googleProvider);
-      return result.user;
-    }
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
   } catch (error) {
     console.error('Login error:', error);
     throw error;
@@ -90,17 +86,14 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
     await updateProfile(result.user, { displayName: name });
     
     // Create initial user document in Firestore immediately
+    const emailLower = email.toLowerCase();
     const newUser: AppUser = {
       uid: result.user.uid,
       name: name,
-      email: email,
-      role: UserRole.USER,
+      email: emailLower,
+      role: emailLower === 'marcelinhofb2011@gmail.com' ? UserRole.ADMIN : UserRole.USER,
       createdAt: Timestamp.now(),
     };
-    
-    if (email === 'marcelinhofb2011@gmail.com') {
-      newUser.role = UserRole.ADMIN;
-    }
 
     await setDoc(doc(db, 'users', result.user.uid), newUser);
     return result.user;
@@ -112,12 +105,8 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
 
 export const loginWithMicrosoft = async () => {
   try {
-    if (isMobile()) {
-      await signInWithRedirect(auth, microsoftProvider);
-    } else {
-      const result = await signInWithPopup(auth, microsoftProvider);
-      return result.user;
-    }
+    const result = await signInWithPopup(auth, microsoftProvider);
+    return result.user;
   } catch (error) {
     console.error('Microsoft login error:', error);
     throw error;
@@ -141,19 +130,21 @@ export const getUserData = async (uid: string): Promise<AppUser | null> => {
 };
 
 export const createInitialUser = async (user: User): Promise<AppUser> => {
+  const email = (user.email || '').toLowerCase();
+  const isAdmin = email === 'marcelinhofb2011@gmail.com';
+  
   const newUser: AppUser = {
     uid: user.uid,
     name: user.displayName || 'Usuário',
-    email: user.email || '',
-    role: UserRole.USER,
+    email: email,
+    role: isAdmin ? UserRole.ADMIN : UserRole.USER,
     createdAt: Timestamp.now(),
   };
-  
-  // If use email matches admin, set as ADMIN
-  if (user.email === 'marcelinhofb2011@gmail.com') {
-    newUser.role = UserRole.ADMIN;
-  }
 
-  await setDoc(doc(db, 'users', user.uid), newUser);
+  try {
+    await setDoc(doc(db, 'users', user.uid), newUser);
+  } catch (error) {
+    console.error('Error creating initial user document:', error);
+  }
   return newUser;
 };

@@ -73,6 +73,7 @@
         "email": { "type": "string" },
         "role": { "type": "string", "enum": ["ADMIN", "COORDINATOR", "USER"] },
         "congregationId": { "type": "string", "description": "Linked congregation for coordinators" },
+        "canSell": { "type": "boolean", "description": "Permission to perform sales/reservations" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["email", "role"]

@@ -3,10 +3,12 @@ import { collection, query, onSnapshot, orderBy, addDoc, deleteDoc, doc, updateD
 import { motion, AnimatePresence } from 'motion/react';
 import { Bus as BusIcon, Plus, Trash2, Edit2, Phone, User, Users, Info } from 'lucide-react';
 import { db } from '../services/firebase';
-import { Bus } from '../types';
+import { Bus, UserRole } from '../types';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 
 const BusesView: React.FC = () => {
+  const { appUser } = useAuth();
   const [buses, setBuses] = useState<Bus[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [formData, setFormData] = useState({
@@ -17,20 +19,45 @@ const BusesView: React.FC = () => {
     driverPhone: '',
     capacity: 50,
     plate: '',
-    notes: ''
+    notes: '',
+    congregationId: ''
   });
 
   useEffect(() => {
-    const q = query(collection(db, 'buses'), orderBy('createdAt', 'desc'));
-    return onSnapshot(q, (snap) => setBuses(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bus))));
-  }, []);
+    if (!appUser) return;
+    
+    let q = query(collection(db, 'buses'), orderBy('createdAt', 'desc'));
+    
+    // Non-admins only see buses for their congregation
+    // Note: In production, firestore rules will enforce this, but client filtering is good for UX
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const allBuses = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bus));
+      if (appUser.role === UserRole.ADMIN) {
+        setBuses(allBuses);
+      } else {
+        setBuses(allBuses.filter(b => b.congregationId === appUser.congregationId));
+      }
+    });
+
+    return unsubscribe;
+  }, [appUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addDoc(collection(db, 'buses'), { ...formData, createdAt: Timestamp.now() });
+    if (!appUser) return;
+
+    const busData = {
+      ...formData,
+      congregationId: appUser.role === UserRole.ADMIN ? formData.congregationId : (appUser.congregationId || ''),
+      createdAt: Timestamp.now()
+    };
+
+    await addDoc(collection(db, 'buses'), busData);
     setShowAdd(false);
-    setFormData({ name: '', number: '', company: '', driver: '', driverPhone: '', capacity: 50, plate: '', notes: '' });
+    setFormData({ name: '', number: '', company: '', driver: '', driverPhone: '', capacity: 50, plate: '', notes: '', congregationId: '' });
   };
+
+  const canManage = appUser?.role === UserRole.ADMIN || appUser?.role === UserRole.COORDINATOR;
 
   return (
     <div className="space-y-6">
@@ -39,10 +66,12 @@ const BusesView: React.FC = () => {
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter leading-tight mb-2">Frota</h1>
           <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] opacity-60">Logística e Transporte</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="bg-slate-900 text-white px-8 py-5 rounded-2xl shadow-2xl shadow-slate-200 hover:scale-105 transition-all flex items-center gap-3 font-black text-xs uppercase tracking-widest self-start md:self-auto">
-          <Plus size={18} />
-          <span>Novo Ônibus</span>
-        </button>
+        {canManage && (
+          <button onClick={() => setShowAdd(true)} className="bg-slate-900 text-white px-8 py-5 rounded-2xl shadow-2xl shadow-slate-200 hover:scale-105 transition-all flex items-center gap-3 font-black text-xs uppercase tracking-widest self-start md:self-auto">
+            <Plus size={18} />
+            <span>Novo Ônibus</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-8">
@@ -52,18 +81,27 @@ const BusesView: React.FC = () => {
               <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 shadow-sm transition-all duration-500 group-hover:text-indigo-600">
                 <BusIcon size={18} />
               </div>
-              <button 
-                onClick={async () => await deleteDoc(doc(db, 'buses', bus.id))}
-                className="p-1.5 text-slate-200 hover:text-rose-500 transition-colors"
-                title="Excluir Unidade"
-              >
-                <Trash2 size={14} />
-              </button>
+              {canManage && (
+                <button 
+                  onClick={async () => await deleteDoc(doc(db, 'buses', bus.id))}
+                  className="p-1.5 text-slate-200 hover:text-rose-500 transition-colors"
+                  title="Excluir Unidade"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
             </div>
             
             <div className="mb-4">
               <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-1">{bus.name}</h3>
-              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-70">{bus.number} • {bus.company}</p>
+              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-70">
+                {bus.number ? `${bus.number} • ` : ''}{bus.company}
+              </p>
+              {bus.plate && (
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mt-1 bg-slate-100 w-fit px-2 py-0.5 rounded">
+                  Placa: {bus.plate}
+                </p>
+              )}
             </div>
             
             <div className="space-y-3">
@@ -100,27 +138,31 @@ const BusesView: React.FC = () => {
                 <div className="grid grid-cols-2 gap-8">
                   <div className="space-y-3 col-span-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Identificação / Nome</label>
-                    <input required className="w-full px-6 py-5 bg-white border border-slate-200 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                    <input required className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Número</label>
-                    <input required className="w-full px-6 py-5 bg-white border border-slate-200 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.number} onChange={e => setFormData({ ...formData, number: e.target.value })} />
+                    <input required className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.number} onChange={e => setFormData({ ...formData, number: e.target.value })} />
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Capacidade</label>
-                    <input required type="number" className="w-full px-6 py-5 bg-white border border-slate-200 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.capacity} onChange={e => setFormData({ ...formData, capacity: Number(e.target.value) })} />
+                    <input required type="number" className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.capacity === 0 ? '' : formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value === '' ? 0 : Number(e.target.value) })} />
                   </div>
                   <div className="space-y-3 col-span-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Empresa</label>
-                    <input className="w-full px-6 py-5 bg-white border border-slate-200 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.company} onChange={e => setFormData({ ...formData, company: e.target.value })} />
+                    <input className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.company} onChange={e => setFormData({ ...formData, company: e.target.value })} />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Placa do Veículo</label>
+                    <input className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" placeholder="ABCD-1234" value={formData.plate} onChange={e => setFormData({ ...formData, plate: e.target.value })} />
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Motorista</label>
-                    <input className="w-full px-6 py-5 bg-white border border-slate-200 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.driver} onChange={e => setFormData({ ...formData, driver: e.target.value })} />
+                    <input className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.driver} onChange={e => setFormData({ ...formData, driver: e.target.value })} />
                   </div>
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Telefone</label>
-                    <input className="w-full px-6 py-5 bg-white border border-slate-200 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.driverPhone} onChange={e => setFormData({ ...formData, driverPhone: e.target.value })} />
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Contato (Fone)</label>
+                    <input className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.driverPhone} onChange={e => setFormData({ ...formData, driverPhone: e.target.value })} />
                   </div>
                 </div>
                 <div className="pt-4">

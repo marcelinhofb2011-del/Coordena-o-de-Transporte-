@@ -35,6 +35,7 @@ export interface Bus {
   capacity: number;
   plate: string;
   notes: string;
+  congregationId: string;
   createdAt: any;
 }
 
@@ -62,6 +63,7 @@ export interface AppUser {
   email: string;
   role: UserRole;
   congregationId?: string;
+  canSell?: boolean;
   createdAt: any;
 }
 

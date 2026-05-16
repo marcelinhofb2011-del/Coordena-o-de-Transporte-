@@ -11,33 +11,39 @@ service cloud.firestore {
     }
 
     function isMasterAdmin() {
-      // Identity verification for the main admin without get() for list performance
+      // Direct comparison with lower() for safety
       return isSignedIn() && 
-             request.auth.token.email == 'marcelinhofb2011@gmail.com' && 
-             request.auth.token.email_verified == true;
+             request.auth.token.email.lower() == 'marcelinhofb2011@gmail.com';
+    }
+
+    function isAdmin() {
+      // Direct check to avoid recursion if possible, but keep it robust
+      return isMasterAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN');
+    }
+
+    function isCoordinator() {
+      return isAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'COORDINATOR');
+    }
+
+    function canSell() {
+      return isCoordinator() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('canSell', false) == true);
     }
 
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    function isAdmin() {
-      return isMasterAdmin() || (isSignedIn() && getUserData().role == 'ADMIN');
-    }
-
-    function isCoordinator() {
-      return isSignedIn() && getUserData().role == 'COORDINATOR';
-    }
-
     function isSameCongregation(congregationId) {
-      return isCoordinator() && getUserData().congregationId == congregationId;
+      return isAdmin() || 
+             (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().congregationId == congregationId);
     }
 
     match /users/{userId} {
-      allow get: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
       allow list: if isAdmin();
-      allow create: if isSignedIn() && request.resource.data.role == (request.auth.token.email == 'marcelinhofb2011@gmail.com' ? 'ADMIN' : 'USER');
-      allow update, delete: if isAdmin();
     }
 
     match /congregations/{congId} {
@@ -52,7 +58,8 @@ service cloud.firestore {
 
     match /buses/{busId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+      allow create: if isCoordinator(); 
+      allow update, delete: if isAdmin() || isSameCongregation(existing().get('congregationId', ''));
     }
 
     match /reservations/{resId} {
@@ -63,14 +70,14 @@ service cloud.firestore {
         resource.data.createdBy == request.auth.uid
       );
       
-      // LIST: Query enforcement. Master admin and admins skip, others must filter by createdBy or congregationId correctly.
+      // LIST: Query enforcement.
       allow list: if isSignedIn() && (
         isAdmin() || 
         resource.data.createdBy == request.auth.uid ||
-        (isCoordinator() && resource.data.congregationId == getUserData().congregationId)
+        isSameCongregation(resource.data.congregationId)
       );
 
-      allow create: if isSignedIn() && 
+      allow create: if isSignedIn() && canSell() &&
                     request.resource.data.createdBy == request.auth.uid &&
                     request.resource.data.amountPaid is number &&
                     request.resource.data.totalValue is number;

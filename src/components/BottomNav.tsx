@@ -19,20 +19,50 @@ interface BottomNavProps {
 
 export default function BottomNav({ currentTab, onTabChange }: BottomNavProps) {
   const { appUser } = useAuth();
+  const [isInputFocused, setIsInputFocused] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
+        setIsInputFocused(true);
+      }
+    };
+    const handleFocusOut = () => {
+      // Small delay to prevent flickering when jumping between fields
+      setTimeout(() => {
+        if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '')) {
+          setIsInputFocused(false);
+        }
+      }, 50);
+    };
+
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+    };
+  }, []);
+
   if (!appUser) return null;
 
   const navItems = [
     { id: 'dashboard', label: 'Início', icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.COORDINATOR], color: 'text-indigo-600', bg: 'bg-indigo-600' },
     { id: 'reservations', label: 'Registros', icon: Users, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER], color: 'text-emerald-600', bg: 'bg-emerald-600' },
     { id: 'new-reservation', label: 'Novo', icon: PlusCircle, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER], color: 'text-rose-600', bg: 'bg-rose-600' },
-    { id: 'manifest', label: 'Lista', icon: ClipboardList, roles: [UserRole.ADMIN, UserRole.COORDINATOR], color: 'text-amber-600', bg: 'bg-amber-600' },
-    { id: 'settings', label: 'Ajustes', icon: Settings, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER], color: 'text-slate-900', bg: 'bg-slate-900' },
+    { id: 'manifest', label: 'Lista', icon: ClipboardList, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER], color: 'text-amber-600', bg: 'bg-amber-600' },
+    { id: 'buses', label: 'Frota', icon: FileText, roles: [UserRole.ADMIN, UserRole.COORDINATOR], color: 'text-blue-600', bg: 'bg-blue-600' },
+    { id: 'settings', label: 'Ajustes', icon: Settings, roles: [UserRole.ADMIN], color: 'text-slate-900', bg: 'bg-slate-900' },
   ];
 
   const filteredItems = navItems.filter(item => item.roles.includes(appUser.role));
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 print:hidden bg-white border-t border-[#e5e5e5]">
+    <nav className={cn(
+      "lg:hidden left-0 right-0 z-40 print:hidden bg-white border-t-2 border-slate-600 transition-all duration-300",
+      isInputFocused ? "relative" : "fixed bottom-0"
+    )}>
       <div className="px-2 py-2 flex items-center justify-around">
         {filteredItems.map((item) => {
           const isActive = currentTab === item.id;

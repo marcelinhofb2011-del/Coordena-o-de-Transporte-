@@ -17,7 +17,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Handle redirect result first
+    // Handle redirect result first - though we moved to popups, we keep this for consistency
     const checkRedirect = async () => {
       try {
         await getRedirectResult(auth);
@@ -28,13 +28,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     checkRedirect();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (authenticatedUser) => {
       try {
-        setUser(user);
-        if (user) {
-          let data = await getUserData(user.uid);
+        setUser(authenticatedUser);
+        if (authenticatedUser) {
+          let data = await getUserData(authenticatedUser.uid);
+          
           if (!data) {
-            data = await createInitialUser(user);
+            data = await createInitialUser(authenticatedUser);
           }
           setAppUser(data);
         } else {

@@ -3,15 +3,19 @@ import { collection, query, onSnapshot, orderBy, updateDoc, doc, deleteDoc } fro
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, UserCheck, Shield, MapPin, Trash2, Search, Mail } from 'lucide-react';
 import { db } from '../services/firebase';
+import { useAuth } from '../contexts/AuthContext';
 import { AppUser, UserRole, Congregation } from '../types';
 import { cn } from '../lib/utils';
 
 const UsersView: React.FC = () => {
+  const { appUser } = useAuth();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [congs, setCongs] = useState<Congregation[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
+    if (appUser?.role !== UserRole.ADMIN) return;
+
     const unsubUsers = onSnapshot(query(collection(db, 'users'), orderBy('createdAt', 'desc')), (snap) => {
       setUsers(snap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
     });
@@ -19,7 +23,21 @@ const UsersView: React.FC = () => {
       setCongs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Congregation)));
     });
     return () => { unsubUsers(); unsubCongs(); };
-  }, []);
+  }, [appUser]);
+
+  if (appUser?.role !== UserRole.ADMIN) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center">
+          <Shield size={40} />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900">Acesso Restrito</h2>
+        <p className="text-slate-500 max-w-xs font-medium">
+          Apenas administradores podem gerenciar acessos e permissões de usuários.
+        </p>
+      </div>
+    );
+  }
 
   const handleUpdateRole = async (uid: string, role: UserRole) => {
     await updateDoc(doc(db, 'users', uid), { role });
@@ -27,6 +45,10 @@ const UsersView: React.FC = () => {
 
   const handleUpdateCong = async (uid: string, congregationId: string) => {
     await updateDoc(doc(db, 'users', uid), { congregationId });
+  };
+
+  const handleUpdateCanSell = async (uid: string, canSell: boolean) => {
+    await updateDoc(doc(db, 'users', uid), { canSell });
   };
 
   const filteredUsers = users.filter(u => 
@@ -46,7 +68,7 @@ const UsersView: React.FC = () => {
         <input
           type="text"
           placeholder="Pesquisar por nome ou email..."
-          className="w-full pl-12 pr-4 py-4 bg-white border border-slate-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+          className="w-full pl-12 pr-4 py-4 bg-white border-2 border-slate-600 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
         />
@@ -54,7 +76,7 @@ const UsersView: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-4">
         {filteredUsers.map((user) => (
-          <motion.div layout key={user.uid} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center gap-6">
+          <motion.div layout key={user.uid} className="bg-white p-6 rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col md:flex-row md:items-center gap-6">
             <div className="flex-1 flex items-center gap-4">
               <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-indigo-600 font-bold text-xl border-2 border-white shadow-sm ring-2 ring-slate-50">
                 {user.name.charAt(0)}
@@ -71,9 +93,9 @@ const UsersView: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4">
               {/* Role Selection */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Nível de Acesso</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Nível de Acesso</label>
                 <select 
-                  className="bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="bg-white border-2 border-slate-600 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
                   value={user.role}
                   onChange={(e) => handleUpdateRole(user.uid, e.target.value as UserRole)}
                 >
@@ -85,11 +107,11 @@ const UsersView: React.FC = () => {
 
               {/* Congregation Selection */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Congregação</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Congregação</label>
                 <select 
                   className={cn(
-                    "bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500",
-                    !user.congregationId ? "text-rose-500" : "text-slate-700"
+                    "bg-white border-2 border-slate-600 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500",
+                    !user.congregationId ? "text-rose-600" : "text-slate-700"
                   )}
                   value={user.congregationId || ''}
                   onChange={(e) => handleUpdateCong(user.uid, e.target.value)}
@@ -97,6 +119,27 @@ const UsersView: React.FC = () => {
                   <option value="">NÃO VINCULADO</option>
                   {congs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+              </div>
+
+              {/* Vendas Permission */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Liberar Vendas</label>
+                <div className="flex items-center">
+                  <button
+                    onClick={() => handleUpdateCanSell(user.uid, !user.canSell)}
+                    className={cn(
+                      "relative inline-flex h-9 w-16 items-center rounded-xl transition-colors outline-none",
+                      user.canSell ? "bg-emerald-500" : "bg-slate-200"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "inline-block h-6 w-6 transform rounded-lg bg-white transition-transform shadow-md",
+                        user.canSell ? "translate-x-8" : "translate-x-1.5"
+                      )}
+                    />
+                  </button>
+                </div>
               </div>
 
               <button 

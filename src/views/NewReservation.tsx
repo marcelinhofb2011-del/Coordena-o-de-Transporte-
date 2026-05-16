@@ -16,7 +16,8 @@ import {
   TrendingUp,
   X,
   PlusCircle,
-  UserPlus
+  UserPlus,
+  Shield
 } from 'lucide-react';
 import { db, handleFirestoreError, createAuditLog } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -77,6 +78,22 @@ const NewReservation: React.FC = () => {
   const balance = totalValue - formData.amountPaid;
   const isPaid = formData.amountPaid >= totalValue;
   const isPartial = formData.amountPaid > 0 && formData.amountPaid < totalValue;
+
+  const isAllowedToSell = appUser?.role === UserRole.ADMIN || appUser?.role === UserRole.COORDINATOR || appUser?.canSell;
+
+  if (!isAllowedToSell) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center">
+          <Shield size={40} />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900">Acesso Restrito</h2>
+        <p className="text-slate-500 max-w-xs font-medium">
+          Você não tem permissão para realizar vendas. Entre em contato com o administrador para liberar seu acesso.
+        </p>
+      </div>
+    );
+  }
 
   const handleAddPassenger = () => {
     setPassengers([...passengers, { name: '', document: '' }]);
@@ -225,13 +242,13 @@ const NewReservation: React.FC = () => {
                 className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end"
               >
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
-                  <input required className="w-full px-0 py-3 bg-transparent border-b border-slate-100 outline-none font-bold text-slate-900 focus:border-indigo-500 placeholder:text-slate-300 transition-all" placeholder="Nome" value={passenger.name} onChange={e => handlePassengerChange(index, 'name', e.target.value)} />
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Nome Completo</label>
+                  <input required className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500 placeholder:text-slate-300 transition-all" placeholder="Nome" value={passenger.name} onChange={e => handlePassengerChange(index, 'name', e.target.value)} />
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 space-y-2">
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Documento</label>
-                    <input required className="w-full px-0 py-3 bg-transparent border-b border-slate-100 outline-none font-bold text-slate-900 focus:border-indigo-500 placeholder:text-slate-300 transition-all" placeholder="RG/CPF" value={passenger.document} onChange={e => handlePassengerChange(index, 'document', e.target.value)} />
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Documento</label>
+                    <input required className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500 placeholder:text-slate-300 transition-all" placeholder="RG/CPF" value={passenger.document} onChange={e => handlePassengerChange(index, 'document', e.target.value)} />
                   </div>
                   {passengers.length > 1 && (
                     <button type="button" onClick={() => handleRemovePassenger(index)} className="p-3 text-rose-500 hover:text-rose-600 transition-all"><X size={16} /></button>
@@ -260,10 +277,10 @@ const NewReservation: React.FC = () => {
                     type="button"
                     onClick={() => toggleDay(day)}
                     className={cn(
-                      "flex-1 min-w-[100px] p-5 rounded-2xl font-bold transition-all flex flex-col items-center gap-1.5 border",
+                      "flex-1 min-w-[100px] p-5 rounded-2xl font-bold transition-all flex flex-col items-center gap-1.5 border-2",
                       selectedDays.includes(day)
                         ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200"
-                        : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"
+                        : "bg-white border-slate-500 text-slate-600 hover:border-slate-800"
                     )}
                   >
                     <span className="text-2xl">
@@ -288,10 +305,10 @@ const NewReservation: React.FC = () => {
 
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Ônibus</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Ônibus</label>
                   <select
                     required
-                    className="w-full px-0 py-3 bg-transparent border-b border-slate-100 outline-none font-bold text-slate-900 focus:border-indigo-500"
+                    className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500"
                     value={formData.busId}
                     onChange={e => setFormData({ ...formData, busId: e.target.value })}
                   >
@@ -302,10 +319,10 @@ const NewReservation: React.FC = () => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Congregação</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Congregação</label>
                   <select
                     required
-                    className="w-full px-0 py-3 bg-transparent border-b border-slate-100 outline-none font-bold text-slate-900 focus:border-indigo-500 disabled:opacity-60"
+                    className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500 disabled:opacity-60"
                     value={formData.congregationId}
                     disabled={appUser?.role !== UserRole.ADMIN}
                     onChange={e => setFormData({ ...formData, congregationId: e.target.value })}
@@ -333,9 +350,9 @@ const NewReservation: React.FC = () => {
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Método</label>
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Método</label>
                     <select
-                      className="w-full px-0 py-3 bg-transparent border-b border-slate-100 outline-none font-bold text-slate-900 focus:border-indigo-500"
+                      className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500"
                       value={formData.paymentMethod}
                       onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
                     >
@@ -345,15 +362,15 @@ const NewReservation: React.FC = () => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Recebido</label>
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Recebido</label>
                     <div className="relative">
                       <DollarSign className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                       <input
                         type="number"
                         step="0.01"
-                        className="w-full pl-5 pr-0 py-3 bg-transparent border-b border-slate-100 outline-none font-bold text-slate-900 focus:border-indigo-500"
-                        value={formData.amountPaid}
-                        onChange={e => setFormData({ ...formData, amountPaid: Number(e.target.value) })}
+                        className="w-full pl-5 pr-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500"
+                        value={formData.amountPaid === 0 ? '' : formData.amountPaid}
+                        onChange={e => setFormData({ ...formData, amountPaid: e.target.value === '' ? 0 : Number(e.target.value) })}
                       />
                     </div>
                   </div>
@@ -372,9 +389,14 @@ const NewReservation: React.FC = () => {
                     <span className="text-xl font-black text-slate-900 tracking-tight">{formatCurrency(totalValue)}</span>
                   </div>
                   <div className="flex items-center justify-between px-4 py-4 bg-slate-950 rounded-2xl text-white shadow-xl shadow-slate-200">
-                    <span className="text-[9px] font-black uppercase tracking-widest opacity-60">Em Aberto</span>
-                    <span className={cn("text-2xl font-black tracking-tight", balance > 0 ? "text-rose-400" : "text-emerald-400")}>
-                      {formatCurrency(Math.max(0, balance))}
+                    <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
+                      {formData.amountPaid > totalValue ? 'Troco' : 'Em Aberto'}
+                    </span>
+                    <span className={cn(
+                      "text-2xl font-black tracking-tight", 
+                      formData.amountPaid > totalValue ? "text-emerald-400" : (balance > 0 ? "text-rose-400" : "text-emerald-400")
+                    )}>
+                      {formatCurrency(formData.amountPaid > totalValue ? Math.abs(balance) : Math.max(0, balance))}
                     </span>
                   </div>
                 </div>

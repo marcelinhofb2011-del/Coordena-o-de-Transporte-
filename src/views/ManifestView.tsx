@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, where, doc, updateDoc } from 'firebase/firestore';
 import { Bus as BusIcon, Calendar, Users, Printer, MapPin, Phone, CheckCircle2, Circle } from 'lucide-react';
 import { db } from '../services/firebase';
-import { Reservation, Bus, Congregation } from '../types';
+import { Reservation, Bus, Congregation, UserRole } from '../types';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function ManifestView() {
+  const { appUser } = useAuth();
   const [buses, setBuses] = useState<Bus[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [congregations, setCongregations] = useState<Congregation[]>([]);
@@ -15,17 +17,33 @@ export default function ManifestView() {
   const days = ['Sexta', 'Sábado', 'Domingo'];
 
   useEffect(() => {
-    const unsubB = onSnapshot(collection(db, 'buses'), snap => 
-      setBuses(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bus)))
-    );
+    if (!appUser) return;
+
+    const unsubB = onSnapshot(collection(db, 'buses'), snap => {
+      const allBuses = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bus));
+      if (appUser.role === UserRole.ADMIN) {
+        setBuses(allBuses);
+      } else {
+        setBuses(allBuses.filter(b => b.congregationId === appUser.congregationId));
+      }
+    });
     const unsubC = onSnapshot(collection(db, 'congregations'), snap => 
       setCongregations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Congregation)))
     );
-    const unsubR = onSnapshot(collection(db, 'reservations'), snap => 
+    let resQuery = query(collection(db, 'reservations'));
+    if (appUser.role !== UserRole.ADMIN) {
+      if (appUser.role === UserRole.COORDINATOR && appUser.congregationId) {
+        resQuery = query(resQuery, where('congregationId', '==', appUser.congregationId));
+      } else {
+        resQuery = query(resQuery, where('createdBy', '==', appUser.uid));
+      }
+    }
+
+    const unsubR = onSnapshot(resQuery, snap => 
       setReservations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation)))
     );
     return () => { unsubB(); unsubC(); unsubR(); };
-  }, []);
+  }, [appUser]);
 
   const busInfo = buses.find(b => b.id === selectedBus);
   
@@ -83,7 +101,7 @@ export default function ManifestView() {
         <div className="space-y-1">
           <label className="text-xs font-semibold text-[#707070]">Selecionar Ônibus</label>
           <select 
-            className="w-full p-2.5 bg-white border border-[#e5e5e5] rounded-sm text-sm outline-none focus:border-[#0067b8]"
+            className="w-full p-2.5 bg-white border-2 border-slate-600 rounded-sm text-sm outline-none focus:border-[#0067b8]"
             value={selectedBus}
             onChange={e => setSelectedBus(e.target.value)}
           >
@@ -97,16 +115,16 @@ export default function ManifestView() {
           <label className="text-xs font-semibold text-[#707070]">Escolher Dia</label>
           <div className="flex gap-1.5 font-semibold">
             {days.map(day => (
-              <button
-                key={day}
-                onClick={() => setSelectedDay(day)}
-                className={cn(
-                  "flex-1 py-2 px-4 rounded-sm text-xs transition-all border",
-                  selectedDay === day 
-                    ? "bg-[#0067b8] border-[#0067b8] text-white" 
-                    : "bg-white border-[#e5e5e5] text-[#707070] hover:bg-[#f3f3f3]"
-                )}
-              >
+                <button
+                  key={day}
+                  onClick={() => setSelectedDay(day)}
+                  className={cn(
+                    "flex-1 py-2 px-4 rounded-sm text-xs transition-all border-2",
+                    selectedDay === day 
+                      ? "bg-[#0067b8] border-[#0067b8] text-white" 
+                      : "bg-white border-slate-600 text-[#707070] hover:bg-[#f3f3f3]"
+                  )}
+                >
                 {day}
               </button>
             ))}

@@ -3,17 +3,34 @@ import { collection, query, onSnapshot, orderBy, addDoc, deleteDoc, doc, Timesta
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, Plus, Trash2 } from 'lucide-react';
 import { db } from '../services/firebase';
-import { Congregation } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { Congregation, UserRole } from '../types';
 
 const CongregationsView: React.FC = () => {
+  const { appUser } = useAuth();
   const [congs, setCongs] = useState<Congregation[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
 
   useEffect(() => {
+    if (appUser?.role !== UserRole.ADMIN) return;
     const q = query(collection(db, 'congregations'), orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snap) => setCongs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Congregation))));
-  }, []);
+  }, [appUser]);
+
+  if (appUser?.role !== UserRole.ADMIN) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center">
+          <MapPin size={40} />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900">Acesso Restrito</h2>
+        <p className="text-slate-500 max-w-xs font-medium">
+          Apenas administradores podem gerenciar congregações.
+        </p>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,8 +76,14 @@ const CongregationsView: React.FC = () => {
               <h3 className="text-2xl font-bold text-slate-900 mb-6">Nova Congregação</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Nome</label>
-                  <input required autoFocus className="w-full p-4 bg-slate-50 border-none rounded-xl outline-none font-semibold" value={name} onChange={e => setName(e.target.value)} />
+                   <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Nome</label>
+                  <input
+                    required
+                    autoFocus
+                    className="w-full p-4 bg-white border-2 border-slate-600 rounded-xl outline-none font-semibold text-slate-900"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
                 </div>
                 <button type="submit" className="w-full bg-rose-500 text-white py-4 rounded-xl font-bold hover:bg-rose-600 transition-all">Salvar</button>
               </form>

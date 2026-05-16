@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { motion } from 'motion/react';
-import { Settings as SettingsIcon, Save, DollarSign, Info } from 'lucide-react';
+import { Settings as SettingsIcon, Save, DollarSign, Info, Shield } from 'lucide-react';
 import { db } from '../services/firebase';
-import { AppSettings } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { UserRole } from '../types';
 
 const SettingsView: React.FC = () => {
+  const { appUser } = useAuth();
   const [ticketPrice, setTicketPrice] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    if (appUser?.role !== UserRole.ADMIN) return;
     const unsub = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
       if (docSnap.exists()) {
         setTicketPrice(docSnap.data().ticketPrice || 0);
@@ -19,7 +22,21 @@ const SettingsView: React.FC = () => {
       setLoading(false);
     });
     return unsub;
-  }, []);
+  }, [appUser]);
+
+  if (appUser?.role !== UserRole.ADMIN) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center">
+          <Shield size={40} />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900">Acesso Restrito</h2>
+        <p className="text-slate-500 max-w-xs font-medium">
+          Configurações globais do sistema são restritas a administradores.
+        </p>
+      </div>
+    );
+  }
 
   const handleSave = async () => {
     setSaving(true);
@@ -64,9 +81,9 @@ const SettingsView: React.FC = () => {
               <input
                 type="number"
                 step="0.01"
-                className="w-full pl-16 pr-6 py-6 bg-white border-none rounded-[2rem] outline-none text-4xl font-black text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm ring-1 ring-slate-100"
-                value={ticketPrice}
-                onChange={(e) => setTicketPrice(Number(e.target.value))}
+                className="w-full pl-16 pr-6 py-6 bg-white border-2 border-slate-600 rounded-[2rem] outline-none text-4xl font-black text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
+                value={ticketPrice === 0 ? '' : ticketPrice}
+                onChange={(e) => setTicketPrice(e.target.value === '' ? 0 : Number(e.target.value))}
               />
             </div>
           </div>

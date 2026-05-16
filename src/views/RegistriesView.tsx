@@ -138,12 +138,12 @@ const RegistriesView: React.FC = () => {
             <input
               type="text"
               placeholder="Pesquisar..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#e5e5e5] rounded-sm text-sm outline-none focus:border-[#0067b8]"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border-2 border-slate-600 rounded-sm text-sm outline-none focus:border-[#0067b8]"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
-          <button onClick={() => setShowFilters(!showFilters)} className={cn("p-2.5 rounded-sm transition-all border", showFilters ? "bg-slate-900 border-slate-900 text-white" : "bg-white border-[#e5e5e5] text-[#707070] hover:bg-[#f3f3f3]")}>
+          <button onClick={() => setShowFilters(!showFilters)} className={cn("p-2.5 rounded-sm transition-all border-2", showFilters ? "bg-slate-900 border-slate-900 text-white" : "bg-white border-slate-600 text-[#707070] hover:bg-[#f3f3f3]")}>
             <Filter size={18} />
           </button>
         </div>
@@ -155,21 +155,23 @@ const RegistriesView: React.FC = () => {
             <div className="ms-card p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[#707070]">Ônibus</label>
-                <select className="w-full p-2.5 bg-[#fcfcfc] border border-[#e5e5e5] rounded-sm text-sm outline-none focus:border-[#0067b8]" value={filterBus} onChange={e => setFilterBus(e.target.value)}>
+                <select className="w-full p-2.5 bg-white border-2 border-slate-600 rounded-sm text-sm outline-none focus:border-[#0067b8]" value={filterBus} onChange={e => setFilterBus(e.target.value)}>
                   <option value="">Todos Ônibus</option>
                   {buses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-[#707070]">Congregação</label>
-                <select className="w-full p-2.5 bg-[#fcfcfc] border border-[#e5e5e5] rounded-sm text-sm outline-none focus:border-[#0067b8]" value={filterCong} onChange={e => setFilterCong(e.target.value)}>
-                  <option value="">Todas Congregações</option>
-                  {congregations.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
+              {appUser?.role === UserRole.ADMIN && (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-[#707070]">Congregação</label>
+                  <select className="w-full p-2.5 bg-white border-2 border-slate-600 rounded-sm text-sm outline-none focus:border-[#0067b8]" value={filterCong} onChange={e => setFilterCong(e.target.value)}>
+                    <option value="">Todas Congregações</option>
+                    {congregations.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[#707070]">Pagamento</label>
-                <select className="w-full p-2.5 bg-[#fcfcfc] border border-[#e5e5e5] rounded-sm text-sm outline-none focus:border-[#0067b8]" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                <select className="w-full p-2.5 bg-white border-2 border-slate-600 rounded-sm text-sm outline-none focus:border-[#0067b8]" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                   <option value="">Status Pagamento</option>
                   <option value={PaymentStatus.PAGO}>Pago</option>
                   <option value={PaymentStatus.PARCIAL}>Parcial</option>
@@ -333,9 +335,9 @@ const RegistriesView: React.FC = () => {
                       type="number"
                       step="0.01"
                       placeholder="0,00"
-                      className="w-full pl-14 pr-5 py-5 bg-slate-50 border-none rounded-2xl outline-none text-2xl font-black text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner"
+                      className="w-full pl-14 pr-5 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none text-2xl font-black text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner"
                       value={newAmount === 0 ? '' : newAmount}
-                      onChange={(e) => setNewAmount(Number(e.target.value))}
+                      onChange={(e) => setNewAmount(e.target.value === '' ? 0 : Number(e.target.value))}
                       autoFocus
                     />
                   </div>
