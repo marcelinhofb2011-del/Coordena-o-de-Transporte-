@@ -18,9 +18,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Handle redirect result first
-    getRedirectResult(auth).catch(error => {
-      console.error('Redirect sign-in error:', error);
-    });
+    const checkRedirect = async () => {
+      try {
+        await getRedirectResult(auth);
+      } catch (error) {
+        console.error('Redirect sign-in error:', error);
+      }
+    };
+    
+    checkRedirect();
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
