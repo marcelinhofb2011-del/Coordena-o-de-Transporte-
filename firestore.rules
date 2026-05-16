@@ -95,6 +95,20 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
+    match /notifications/{notifId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        (getUserData().get('role', 'USER') in resource.data.get('targetRoles', []) && 
+         (!resource.data.keys().hasAny(['congregationId']) || resource.data.congregationId == getUserData().get('congregationId', '')))
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (getUserData().get('role', 'USER') in existing().get('targetRoles', []) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']))
+      );
+    }
+
     function existing() { return resource.data; }
   }
 }

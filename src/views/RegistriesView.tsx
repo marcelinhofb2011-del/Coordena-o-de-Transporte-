@@ -19,8 +19,8 @@ import {
   DollarSign,
   Printer
 } from 'lucide-react';
-import { db, createAuditLog } from '../services/firebase';
-import { Reservation, PaymentStatus, Bus, Congregation, UserRole, LogAction } from '../types';
+import { db, createAuditLog, createNotification } from '../services/firebase';
+import { Reservation, PaymentStatus, Bus, Congregation, UserRole, LogAction, NotificationType } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { cn, formatCurrency } from '../lib/utils';
 
@@ -107,6 +107,16 @@ const RegistriesView: React.FC = () => {
         `Pagamento atualizado em R$ ${newAmount}. Novo saldo: R$ ${Math.max(0, editRes.totalValue - updatedAmount)}`,
         editRes.id
       );
+
+      // Notify about payment update
+      await createNotification({
+        title: 'Pagamento Atualizado',
+        message: `Novo pagamento de ${formatCurrency(newAmount)} para ${editRes.passengers?.[0]?.name}. Saldo: ${formatCurrency(Math.max(0, editRes.totalValue - updatedAmount))}`,
+        type: NotificationType.RESERVATION_NEW,
+        targetRoles: [UserRole.ADMIN, UserRole.COORDINATOR],
+        congregationId: editRes.congregationId,
+        link: 'reservations'
+      });
 
       setEditRes(null);
       setNewAmount(0);

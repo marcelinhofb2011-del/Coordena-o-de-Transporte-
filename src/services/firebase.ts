@@ -15,13 +15,32 @@ import {
 } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, query, collection, where, onSnapshot, Unsubscribe, addDoc, updateDoc, deleteDoc, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { AppUser, UserRole, OperationType, LogAction } from '../types';
+import { AppUser, UserRole, OperationType, LogAction, NotificationType } from '../types';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 const microsoftProvider = new OAuthProvider('microsoft.com');
+
+export async function createNotification(data: {
+  title: string;
+  message: string;
+  type: NotificationType;
+  targetRoles: UserRole[];
+  congregationId?: string;
+  link?: string;
+}) {
+  try {
+    await addDoc(collection(db, 'notifications'), {
+      ...data,
+      readBy: [],
+      createdAt: Timestamp.now()
+    });
+  } catch (error) {
+    console.error('Error creating notification:', error);
+  }
+}
 
 // Utility to detect mobile
 export const isMobile = () => {
@@ -96,6 +115,16 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
     };
 
     await setDoc(doc(db, 'users', result.user.uid), newUser);
+
+    // Notify admins of new user registration
+    await createNotification({
+      title: 'Novo Registro de Usuário',
+      message: `O usuário ${name} (${emailLower}) acabou de se cadastrar no sistema.`,
+      type: NotificationType.USER_REGISTRATION,
+      targetRoles: [UserRole.ADMIN],
+      link: 'users'
+    });
+
     return result.user;
   } catch (error) {
     console.error('Registration error:', error);
@@ -143,6 +172,17 @@ export const createInitialUser = async (user: User): Promise<AppUser> => {
 
   try {
     await setDoc(doc(db, 'users', user.uid), newUser);
+    
+    // Notify admins of new user registration via Google/Microsoft
+    if (!isAdmin) {
+      await createNotification({
+        title: 'Novo Registro de Usuário',
+        message: `O usuário ${newUser.name} (${email}) acabou de entrar no sistema.`,
+        type: NotificationType.USER_REGISTRATION,
+        targetRoles: [UserRole.ADMIN],
+        link: 'users'
+      });
+    }
   } catch (error) {
     console.error('Error creating initial user document:', error);
   }

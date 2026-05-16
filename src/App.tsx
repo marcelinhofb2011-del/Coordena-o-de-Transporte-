@@ -17,11 +17,20 @@ import AuditLogsView from './views/AuditLogsView';
 import UsersView from './views/UsersView';
 import SettingsView from './views/SettingsView';
 import { UserRole } from './types';
+import NotificationBell from './components/NotificationBell';
 
 export default function App() {
   const { appUser, user, loading } = useAuth();
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  React.useEffect(() => {
+    const handleSetTab = (e: any) => {
+      if (e.detail) setCurrentTab(e.detail);
+    };
+    window.addEventListener('app:setTab', handleSetTab);
+    return () => window.removeEventListener('app:setTab', handleSetTab);
+  }, []);
 
   if (loading) {
     return (
@@ -107,6 +116,7 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-semibold text-[#1b1b1b] leading-none mb-0.5">{appUser?.name || 'Carregando...'}</p>
                 <p className="text-[10px] font-medium text-[#0067b8] uppercase tracking-wide leading-none">{appUser?.role}</p>

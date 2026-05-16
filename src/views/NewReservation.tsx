@@ -19,9 +19,9 @@ import {
   UserPlus,
   Shield
 } from 'lucide-react';
-import { db, handleFirestoreError, createAuditLog } from '../services/firebase';
+import { db, handleFirestoreError, createAuditLog, createNotification } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Bus, Congregation, OperationType, PaymentStatus, Reservation, UserRole, Passenger, LogAction } from '../types';
+import { Bus, Congregation, OperationType, PaymentStatus, Reservation, UserRole, Passenger, LogAction, NotificationType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 
 const NewReservation: React.FC = () => {
@@ -182,6 +182,16 @@ const NewReservation: React.FC = () => {
         `Reserva para ${passengers.length} pass. (${passengers[0].name}) no ônibus ${busData.name}`,
         docRef.id
       );
+
+      // Notify relevant users
+      await createNotification({
+        title: 'Novo Cadastro de Ônibus',
+        message: `${passengers.length} pass. (${passengers[0].name}) registrados para a congregação ${congregations.find(c => c.id === formData.congregationId)?.name || 'Congregação'}.`,
+        type: NotificationType.RESERVATION_NEW,
+        targetRoles: [UserRole.ADMIN, UserRole.COORDINATOR],
+        congregationId: formData.congregationId,
+        link: 'reservations'
+      });
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);

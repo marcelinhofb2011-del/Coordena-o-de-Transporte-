@@ -92,3 +92,21 @@ export enum OperationType {
   GET = 'get',
   WRITE = 'write',
 }
+
+export enum NotificationType {
+  USER_REGISTRATION = 'USER_REGISTRATION',
+  RESERVATION_NEW = 'RESERVATION_NEW',
+  SYSTEM = 'SYSTEM'
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  readBy: string[]; // List of UIDs who read it
+  targetRoles: UserRole[];
+  congregationId?: string;
+  link?: string;
+  createdAt: any;
+}
