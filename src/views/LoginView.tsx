@@ -36,6 +36,26 @@ const LoginView: React.FC = () => {
     }
   };
 
+  const handleSocialLogin = async (provider: 'google' | 'microsoft') => {
+    setError('');
+    setLoading(true);
+    try {
+      if (provider === 'google') await loginWithGoogle();
+      else await loginWithMicrosoft();
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/popup-blocked') {
+        setError('O popup de login foi bloqueado pelo navegador.');
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError('O login foi cancelado.');
+      } else {
+        setError('Erro ao conectar com provedor externo. Tente novamente.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f2f2f2] flex items-center justify-center p-4">
       {/* Background shape for depth */}
@@ -142,7 +162,7 @@ const LoginView: React.FC = () => {
               type="submit"
               className="px-8 py-2 bg-[#0067b8] text-white text-sm font-semibold hover:bg-[#005da6] transition-all disabled:opacity-50"
             >
-              {loading ? 'Entrando...' : (isRegister ? 'Criar' : 'Próximo')}
+              {loading ? (isRegister ? 'Criando...' : 'Entrando...') : (isRegister ? 'Criar' : 'Próximo')}
             </button>
           </div>
         </form>
@@ -159,19 +179,21 @@ const LoginView: React.FC = () => {
 
           <div className="mt-6 flex flex-col gap-2">
             <button
-              onClick={loginWithGoogle}
-              className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-medium flex items-center justify-center gap-3 hover:bg-slate-50 transition-all"
+              disabled={loading}
+              onClick={() => handleSocialLogin('google')}
+              className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-medium flex items-center justify-center gap-3 hover:bg-slate-50 transition-all disabled:opacity-50"
             >
               <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
-              Entrar com o Google
+              {loading ? 'Processando...' : 'Entrar com o Google'}
             </button>
             
             <button
-              onClick={loginWithMicrosoft}
-              className="w-full py-2.5 bg-[#2f2f2f] text-white text-sm font-medium flex items-center justify-center gap-3 hover:bg-black transition-all"
+              disabled={loading}
+              onClick={() => handleSocialLogin('microsoft')}
+              className="w-full py-2.5 bg-[#2f2f2f] text-white text-sm font-medium flex items-center justify-center gap-3 hover:bg-black transition-all disabled:opacity-50"
             >
               <img src="https://www.microsoft.com/favicon.ico" alt="Microsoft" className="w-4 h-4 invert" />
-              Entrar com a Microsoft
+              {loading ? 'Processando...' : 'Entrar com a Microsoft'}
             </button>
           </div>
         </div>

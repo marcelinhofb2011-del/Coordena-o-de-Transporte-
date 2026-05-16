@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Menu, LogOut, Shield } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
+import { logout } from './services/firebase';
 import LoginView from './views/LoginView';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
@@ -48,9 +49,16 @@ export default function App() {
           </div>
           <h2 className="text-2xl font-bold text-[#1b1b1b] mb-4">Acesso Pendente</h2>
           <p className="text-[#707070] text-sm mb-8">Seu perfil ainda não foi vinculado a uma congregação. Por favor, entre em contato com o administrador.</p>
-          <div className="p-3 bg-[#f2f2f2] rounded-sm text-[10px] font-mono text-[#707070] break-all">
+          <div className="p-3 bg-[#f2f2f2] rounded-sm text-[10px] font-mono text-[#707070] break-all mb-8">
             UID: {user.uid}
           </div>
+          <button 
+            onClick={() => logout()}
+            className="flex items-center gap-2 px-6 py-2 bg-[#e81123] text-white text-sm font-semibold rounded-sm hover:bg-red-700 transition-all mx-auto shadow-md"
+          >
+            <LogOut size={16} />
+            Sair e trocar conta
+          </button>
         </motion.div>
       </div>
     );
