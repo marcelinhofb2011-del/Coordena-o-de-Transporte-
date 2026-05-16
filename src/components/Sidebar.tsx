@@ -30,6 +30,13 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentTab, setTab, isOpen, setIsOpen }) => {
   const { appUser } = useAuth();
+  const [isDesktop, setIsDesktop] = React.useState(window.innerWidth >= 1024);
+
+  React.useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.COORDINATOR], color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -63,7 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setTab, isOpen, setIsOpen
 
       <motion.aside
         initial={false}
-        animate={{ x: isOpen ? 0 : -300 }}
+        animate={{ x: isDesktop ? 0 : (isOpen ? 0 : -300) }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         className={cn(
           "fixed top-0 left-0 bottom-0 w-72 bg-[#f8f9fa] z-50 lg:translate-x-0 lg:static lg:bg-transparent will-change-transform",

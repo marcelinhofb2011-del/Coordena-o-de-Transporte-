@@ -108,11 +108,11 @@ export default function App() {
 
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-semibold text-[#1b1b1b] leading-none mb-0.5">{appUser?.name}</p>
+                <p className="text-xs font-semibold text-[#1b1b1b] leading-none mb-0.5">{appUser?.name || 'Carregando...'}</p>
                 <p className="text-[10px] font-medium text-[#0067b8] uppercase tracking-wide leading-none">{appUser?.role}</p>
               </div>
-              <div className="w-8 h-8 rounded-sm bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
-                {appUser?.name.charAt(0)}
+              <div className="w-8 h-8 rounded-sm bg-slate-900 text-white flex items-center justify-center font-bold text-xs uppercase">
+                {(appUser?.name || 'U').charAt(0)}
               </div>
             </div>
           </div>
