@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
-import { auth, getUserData, createInitialUser } from '../services/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { auth, getUserData, createInitialUser, db } from '../services/firebase';
 import { AppUser } from '../types';
 
 interface AuthContextType {
@@ -17,7 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Handle redirect result first - though we moved to popups, we keep this for consistency
+    // Handle redirect result first
     const checkRedirect = async () => {
       try {
         await getRedirectResult(auth);
@@ -25,30 +26,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Redirect sign-in error:', error);
       }
     };
-    
     checkRedirect();
 
-    const unsubscribe = onAuthStateChanged(auth, async (authenticatedUser) => {
-      try {
-        setUser(authenticatedUser);
-        if (authenticatedUser) {
-          let data = await getUserData(authenticatedUser.uid);
-          
-          if (!data) {
-            data = await createInitialUser(authenticatedUser);
-          }
-          setAppUser(data);
-        } else {
-          setAppUser(null);
-        }
-      } catch (error) {
-        console.error('Auth state error:', error);
-      } finally {
+    let unsubscribeDoc: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (authenticatedUser) => {
+      setUser(authenticatedUser);
+      
+      // Clean up previous doc subscription if it exists
+      if (unsubscribeDoc) {
+        unsubscribeDoc();
+        unsubscribeDoc = null;
+      }
+
+      if (!authenticatedUser) {
+        setAppUser(null);
         setLoading(false);
+      } else {
+        setLoading(true);
+        const userDocRef = doc(db, 'users', authenticatedUser.uid);
+        unsubscribeDoc = onSnapshot(userDocRef, async (docSnap) => {
+          if (docSnap.exists()) {
+            setAppUser({ uid: docSnap.id, ...docSnap.data() } as AppUser);
+          } else {
+            // Document doesn't exist yet, try to create it
+            const data = await createInitialUser(authenticatedUser);
+            setAppUser(data);
+          }
+          setLoading(false);
+        }, (error) => {
+          console.error('Error listening to user doc:', error);
+          setLoading(false);
+        });
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeDoc) unsubscribeDoc();
+    };
   }, []);
 
   return (

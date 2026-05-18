@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, UserPlus, FileText, Info } from 'lucide-react';
+import { Bell, UserPlus, FileText, Info, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNotifications } from '../contexts/NotificationContext';
 import { NotificationType } from '../types';
@@ -14,7 +14,8 @@ const NotificationBell: React.FC = () => {
     switch (type) {
       case NotificationType.USER_REGISTRATION: return <UserPlus size={16} className="text-blue-600" />;
       case NotificationType.RESERVATION_NEW: return <FileText size={16} className="text-emerald-600" />;
-      default: return <Info size={16} className="text-slate-600" />;
+      case NotificationType.RESERVATION_DELETE: return <Trash2 size={16} className="text-rose-600" />;
+      default: return <span className="p-1 bg-slate-100 rounded-sm"><Info size={12} className="text-slate-600" /></span>;
     }
   };
 

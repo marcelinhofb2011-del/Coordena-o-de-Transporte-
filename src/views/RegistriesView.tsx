@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, orderBy, deleteDoc, doc, updateDoc, where } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { 
   Search, 
   Filter, 
@@ -17,7 +19,9 @@ import {
   X,
   CreditCard,
   DollarSign,
-  Printer
+  Printer,
+  Share2,
+  ChevronDown
 } from 'lucide-react';
 import { db, createAuditLog, createNotification } from '../services/firebase';
 import { Reservation, PaymentStatus, Bus, Congregation, UserRole, LogAction, NotificationType } from '../types';
@@ -42,6 +46,10 @@ const RegistriesView: React.FC = () => {
   const [editRes, setEditRes] = useState<Reservation | null>(null);
   const [newAmount, setNewAmount] = useState<number>(0);
   const [updating, setUpdating] = useState(false);
+
+  // Receipt State
+  const [receivedAmount, setReceivedAmount] = useState<number>(0);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   useEffect(() => {
     if (!appUser) return;
@@ -83,6 +91,16 @@ const RegistriesView: React.FC = () => {
         `Reserva eliminada: ${res.passengers?.[0]?.name || 'N/A'} (+${(res.passengers?.length || 1) - 1})`,
         deleteId
       );
+
+      // Notify about deletion
+      await createNotification({
+        title: 'Reserva Excluída',
+        message: `A reserva de ${res.passengers?.[0]?.name || 'Passageiro'} foi removida do sistema. Vagas liberadas.`,
+        type: NotificationType.RESERVATION_DELETE,
+        targetRoles: [UserRole.ADMIN, UserRole.COORDINATOR],
+        congregationId: res.congregationId,
+        link: 'reservations'
+      });
     }
     setDeleteId(null);
   };
@@ -124,6 +142,48 @@ const RegistriesView: React.FC = () => {
       console.error('Error updating payment:', error);
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleShareReceipt = async () => {
+    if (!showReceipt) return;
+    setIsGeneratingPDF(true);
+    
+    try {
+      const element = document.getElementById('receipt-downloadable');
+      if (!element) return;
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width / 2, canvas.height / 2]
+      });
+
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+      
+      const blob = pdf.output('blob');
+      const file = new File([blob], `Recibo_${showReceipt.passengers?.[0]?.name}.pdf`, { type: 'application/pdf' });
+
+      if (navigator.share) {
+        await navigator.share({
+          files: [file],
+          title: 'Recibo de Passagem',
+          text: `Recibo de passagem - ${showReceipt.passengers?.[0]?.name}`
+        });
+      } else {
+        pdf.save(`Recibo_${showReceipt.passengers?.[0]?.name}.pdf`);
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -273,7 +333,7 @@ const RegistriesView: React.FC = () => {
 
                   <td className="px-6 py-5">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => setShowReceipt(res)} className="p-2 text-[#707070] hover:text-[#0067b8] hover:bg-white rounded-sm transition-all"><Printer size={16} /></button>
+                      <button onClick={() => { setShowReceipt(res); setReceivedAmount(res.receivedAmount || res.totalValue); }} className="p-2 text-[#707070] hover:text-[#0067b8] hover:bg-white rounded-sm transition-all"><Printer size={16} /></button>
                       <button onClick={() => { setEditRes(res); setNewAmount(0); }} className="p-2 text-[#707070] hover:text-[#0067b8] hover:bg-white rounded-sm transition-all"><CreditCard size={16} /></button>
                       <button onClick={() => setDeleteId(res.id)} className="p-2 text-[#707070] hover:text-[#e81123] hover:bg-red-50 rounded-sm transition-all"><Trash2 size={16} /></button>
                     </div>
@@ -366,59 +426,137 @@ const RegistriesView: React.FC = () => {
         )}
 
         {showReceipt && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onClick={() => setShowReceipt(null)} />
-            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-white w-full max-w-md rounded-[3rem] overflow-hidden shadow-2xl print:shadow-none print:rounded-none">
-              <div className="p-10 space-y-8">
-                <div className="text-center space-y-2">
-                  <div className="w-20 h-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-6 shadow-xl shadow-indigo-200">
-                    <CheckCircle2 size={40} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0" onClick={() => setShowReceipt(null)} />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-[400px] rounded-3xl overflow-hidden shadow-2xl flex flex-col my-auto"
+            >
+              {/* Modal UI (Not the PDF Content) */}
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                <h3 className="font-black text-slate-900">Visualizar Recibo</h3>
+                <button onClick={() => setShowReceipt(null)} className="p-2 hover:bg-slate-50 rounded-full text-slate-400"><X size={20} /></button>
+              </div>
+
+              <div className="p-6 space-y-6 overflow-y-auto bg-slate-50">
+                {/* Inputs for calculation within modal */}
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Valor Recebido (Troco)</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-900 focus:border-indigo-500"
+                        value={receivedAmount}
+                        onChange={(e) => setReceivedAmount(Number(e.target.value))}
+                      />
+                    </div>
                   </div>
-                  <h3 className="text-3xl font-black text-slate-900 tracking-tight">Comprovante</h3>
-                  <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Recibo de Pagamento</p>
+                  
+                  <div className="flex justify-between items-center p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
+                    <span className="text-sm font-bold text-slate-500">Troco:</span>
+                    <span className="font-black text-slate-900 text-lg">
+                      {formatCurrency(Math.max(0, receivedAmount - showReceipt.totalValue))}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="space-y-6 bg-slate-50/50 p-8 rounded-3xl border border-slate-100">
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Passageiro</span>
-                    <span className="font-black text-slate-900">{showReceipt.passengers?.[0]?.name}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ônibus</span>
-                    <span className="font-black text-slate-900">{buses.find(b => b.id === showReceipt.busId)?.name}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total</span>
-                    <span className="font-black text-slate-900">{formatCurrency(showReceipt.totalValue)}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-4 text-emerald-600">
-                    <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Pago</span>
-                    <span className="font-black text-xl">{formatCurrency(showReceipt.amountPaid)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo</span>
-                    <span className={cn("font-black", showReceipt.balance > 0 ? "text-rose-500" : "text-emerald-500")}>{formatCurrency(showReceipt.balance)}</span>
+                {/* PDF PREVIEW ZONE - EXACT S-24-T STYLE */}
+                <div className="bg-white border rounded-lg shadow-sm overflow-hidden transform scale-95 origin-top">
+                  <div id="receipt-downloadable" className="p-8 bg-[#ffffff] text-[#1a1a1a] font-serif w-[350px] mx-auto min-h-[450px] space-y-6">
+                    <div className="text-center border-b-2 border-[#1a1a1a] pb-2">
+                      <h4 className="text-xl font-black uppercase tracking-widest text-[#1a1a1a]">Recibo</h4>
+                    </div>
+
+                    <div className="flex justify-between items-center border-b-2 border-[#1a1a1a] pb-4">
+                      <div className="text-left font-black text-xs uppercase tracking-widest text-[#1a1a1a]">
+                        Documento Digital
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-[#1a1a1a]">Data: <span className="font-normal underline underline-offset-4">{showReceipt.createdAt?.toDate().toLocaleDateString('pt-BR')}</span></p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6 py-4">
+                      <div className="flex flex-col border-b border-[#dddddd] pb-2">
+                        <span className="text-[10px] font-bold text-[#999999] uppercase tracking-wider">Comprador</span>
+                        <span className="text-lg font-bold text-[#1a1a1a]">{showReceipt.passengers?.[0]?.name}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="flex flex-col border-b border-[#dddddd] pb-2">
+                          <span className="text-[10px] font-bold text-[#999999] uppercase tracking-wider">Dias Marcados</span>
+                          <span className="text-sm font-bold text-[#1a1a1a]">{showReceipt.days?.join(', ')}</span>
+                        </div>
+                        <div className="flex flex-col border-b border-[#dddddd] pb-2 text-right">
+                          <span className="text-[10px] font-bold text-[#999999] uppercase tracking-wider">Ônibus / Vaga</span>
+                          <span className="text-sm font-bold text-[#1a1a1a]">{buses.find(b => b.id === showReceipt.busId)?.name}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-8 py-6 bg-[#fafafa] rounded-xl px-6 border border-[#eeeeee]">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-[#999999] uppercase">Valor Total:</p>
+                        <p className="text-xl font-black text-[#1a1a1a]">{formatCurrency(showReceipt.totalValue)}</p>
+                      </div>
+                      <div className="space-y-1 text-right border-l border-[#dddddd] pl-6">
+                        <p className="text-[10px] font-bold text-[#999999] uppercase">Valor Recebido:</p>
+                        <p className="text-xl font-black text-[#1a1a1a]">{formatCurrency(receivedAmount)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center py-4 px-6 bg-[#f0fdf4] rounded-xl border border-[#dcfce7]">
+                      <span className="text-xs font-bold uppercase tracking-widest text-[#15803d]">Troco a Devolver:</span>
+                      <span className="text-2xl font-black text-[#15803d]">{formatCurrency(Math.max(0, receivedAmount - showReceipt.totalValue))}</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xl font-black uppercase border-t-4 border-[#1a1a1a] pt-4 text-[#1a1a1a]">
+                        <span>Total:</span>
+                        <span>{formatCurrency(showReceipt.totalValue)}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-8 pt-12 text-center text-[#1a1a1a]">
+                      <div className="border-t border-[#1a1a1a] pt-1">
+                        <p className="text-[10px] font-bold uppercase tracking-tighter">({appUser?.name || 'Vendedor'})</p>
+                        <p className="text-[8px] text-[#999999]">Recibo gerado digitalmente</p>
+                      </div>
+                      <div className="border-t border-[#1a1a1a] pt-1">
+                        <p className="text-[10px] font-bold uppercase tracking-tighter">(Conferido por)</p>
+                      </div>
+                    </div>
+                    
+                    <div className="text-[8px] text-[#cccccc] pt-4 flex justify-between">
+                      <span>S-24-T 05/21 MOD</span>
+                      <span>ID: {showReceipt.id.substring(0, 8)}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-indigo-50/50 p-6 rounded-2xl text-center space-y-1">
-                  <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Data do Registro</p>
-                  <p className="text-sm font-black text-indigo-600">{showReceipt.createdAt?.toDate().toLocaleDateString('pt-BR')} às {showReceipt.createdAt?.toDate().toLocaleTimeString('pt-BR')}</p>
-                </div>
-
-                <div className="flex gap-4 print:hidden">
+                <div className="flex gap-3 sticky bottom-0 bg-slate-50 pt-4">
                   <button
-                    onClick={() => window.print()}
-                    className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-3"
+                    onClick={handleShareReceipt}
+                    disabled={isGeneratingPDF}
+                    className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 disabled:opacity-50"
                   >
-                    <Printer size={18} />
-                    Imprimir
+                    {isGeneratingPDF ? (
+                      <Clock className="animate-spin" size={16} />
+                    ) : (
+                      <Share2 size={16} />
+                    )}
+                    {isGeneratingPDF ? 'Gerando...' : 'Compartilhar PDF'}
                   </button>
                   <button
-                    onClick={() => setShowReceipt(null)}
-                    className="px-8 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200 transition-all"
+                    onClick={() => window.print()}
+                    className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-100"
                   >
-                    Fechar
+                    <Printer size={16} />
+                    Imprimir
                   </button>
                 </div>
               </div>
@@ -431,3 +569,4 @@ const RegistriesView: React.FC = () => {
 };
 
 export default RegistriesView;
+

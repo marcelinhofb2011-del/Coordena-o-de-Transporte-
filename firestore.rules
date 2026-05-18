@@ -11,38 +11,51 @@ service cloud.firestore {
     }
 
     function isMasterAdmin() {
-      // Direct comparison with lower() for safety
       return isSignedIn() && 
+             request.auth.token.keys().contains('email') &&
              request.auth.token.email.lower() == 'marcelinhofb2011@gmail.com';
     }
 
+    function getUserData() {
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(path) ? get(path).data : {};
+    }
+
     function isAdmin() {
-      return isMasterAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'ADMIN');
+      return isMasterAdmin() || (isSignedIn() && getUserData().get('role', '') == 'ADMIN');
     }
 
     function isCoordinator() {
-      return isMasterAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['ADMIN', 'COORDINATOR']);
+      let data = getUserData();
+      return isMasterAdmin() || (isSignedIn() && data.get('role', '') in ['ADMIN', 'COORDINATOR']);
     }
 
     function canSell() {
-      return isCoordinator() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('canSell', false) == true);
+      let data = getUserData();
+      return isCoordinator() || (isSignedIn() && data.get('canSell', false) == true);
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function getExistingData() {
+       return resource.data;
     }
 
     function isSameCongregation(congregationId) {
-      return isAdmin() || 
-             (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().congregationId == congregationId);
+      let data = getUserData();
+      return isAdmin() || (isSignedIn() && data.get('congregationId', '') == congregationId);
     }
 
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow get: if isSignedIn() && (request.auth.uid == userId || isCoordinator());
+      allow list: if isCoordinator();
       allow write: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isAdmin();
+      allow update: if isAdmin() || (
+        isCoordinator() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('congregationId', '') != '' &&
+        existing().get('congregationId', '') == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('congregationId', '') &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canSell'])
+      );
       allow delete: if isAdmin();
-      allow list: if isAdmin();
     }
 
     match /congregations/{congId} {
@@ -62,18 +75,13 @@ service cloud.firestore {
     }
 
     match /reservations/{resId} {
-      // GET: Single document access
+      // Allow list for anyone signed in to check occupancy
+      allow list: if isSignedIn();
+      
       allow get: if isSignedIn() && (
         isAdmin() || 
         isSameCongregation(resource.data.congregationId) || 
         resource.data.createdBy == request.auth.uid
-      );
-      
-      // LIST: Query enforcement.
-      allow list: if isSignedIn() && (
-        isAdmin() || 
-        resource.data.createdBy == request.auth.uid ||
-        isSameCongregation(resource.data.congregationId)
       );
 
       allow create: if isSignedIn() && canSell() &&

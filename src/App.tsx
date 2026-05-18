@@ -56,9 +56,13 @@ export default function App() {
           <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-sm flex items-center justify-center mx-auto mb-8 border border-amber-100">
             <Shield size={32} />
           </div>
-          <h2 className="text-2xl font-bold text-[#1b1b1b] mb-4">Acesso Pendente</h2>
-          <p className="text-[#707070] text-sm mb-8">Seu perfil ainda não foi vinculado a uma congregação. Por favor, entre em contato com o administrador.</p>
-          <div className="p-3 bg-[#f2f2f2] rounded-sm text-[10px] font-mono text-[#707070] break-all mb-8">
+          <h2 className="text-2xl font-bold text-[#1b1b1b] mb-4">Acesso Restrito</h2>
+          <p className="text-[#707070] text-sm mb-8">
+            Seu perfil ({appUser.role === UserRole.COORDINATOR ? 'Coordenador' : 'Apoio'}) ainda não foi vinculado a uma congregação. Por favor, peça ao administrador para vincular sua conta a uma congregação e liberar as permissões necessárias.
+          </p>
+          <div className="p-3 bg-[#f2f2f2] rounded-sm text-[10px] font-mono text-[#707070] break-all mb-8 text-left">
+            USUÁRIO: {appUser.email}<br/>
+            ROLE: {appUser.role}<br/>
             UID: {user.uid}
           </div>
           <button 
@@ -66,7 +70,7 @@ export default function App() {
             className="flex items-center gap-2 px-6 py-2 bg-[#e81123] text-white text-sm font-semibold rounded-sm hover:bg-red-700 transition-all mx-auto shadow-md"
           >
             <LogOut size={16} />
-            Sair e trocar conta
+            Sair do Sistema
           </button>
         </motion.div>
       </div>
@@ -119,7 +123,10 @@ export default function App() {
               <NotificationBell />
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-semibold text-[#1b1b1b] leading-none mb-0.5">{appUser?.name || 'Carregando...'}</p>
-                <p className="text-[10px] font-medium text-[#0067b8] uppercase tracking-wide leading-none">{appUser?.role}</p>
+                <p className="text-[10px] font-medium text-[#0067b8] uppercase tracking-wide leading-none">
+                  {appUser?.role === UserRole.ADMIN ? 'Administrador' : 
+                   appUser?.role === UserRole.COORDINATOR ? 'Coordenador' : 'Apoio'}
+                </p>
               </div>
               <div className="w-8 h-8 rounded-sm bg-slate-900 text-white flex items-center justify-center font-bold text-xs uppercase">
                 {(appUser?.name || 'U').charAt(0)}

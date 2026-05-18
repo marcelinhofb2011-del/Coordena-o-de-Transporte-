@@ -51,6 +51,7 @@ export interface Reservation {
   unitValue: number;
   totalValue: number;
   amountPaid: number;
+  receivedAmount?: number;
   balance: number;
   boardedStatus?: { [day: string]: number[] }; // Map of day to array of passenger indices who boarded
   createdAt: any;
@@ -96,6 +97,7 @@ export enum OperationType {
 export enum NotificationType {
   USER_REGISTRATION = 'USER_REGISTRATION',
   RESERVATION_NEW = 'RESERVATION_NEW',
+  RESERVATION_DELETE = 'RESERVATION_DELETE',
   SYSTEM = 'SYSTEM'
 }
 

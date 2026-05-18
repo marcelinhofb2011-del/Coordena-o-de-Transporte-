@@ -33,6 +33,12 @@ const Dashboard: React.FC = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!appUser) return;
@@ -64,6 +70,7 @@ const Dashboard: React.FC = () => {
   // Calculate Stats
   const totalReservations = reservations.length;
   const totalPassengers = reservations.reduce((acc, r) => acc + (r.passengers?.length || 0), 0);
+  const totalGross = reservations.reduce((acc, r) => acc + r.totalValue, 0);
   const totalCollected = reservations.reduce((acc, current) => acc + current.amountPaid, 0);
   const totalPending = reservations.reduce((acc, current) => acc + (current.balance > 0 ? current.balance : 0), 0);
   const paidCount = reservations.filter(r => r.paymentStatus === PaymentStatus.PAGO).length;
@@ -84,9 +91,8 @@ const Dashboard: React.FC = () => {
 
   const stats = [
     { label: 'Passageiros', value: totalPassengers, icon: Users, color: 'text-indigo-600', bg: 'bg-white border border-slate-200' },
-    { label: 'Arrecadado', value: formatCurrency(totalCollected), icon: DollarSign, color: 'text-emerald-600', bg: 'bg-white border border-slate-200' },
-    { label: 'Vagas Livres', value: availableSeats, icon: BusIcon, color: 'text-sky-600', bg: 'bg-white border border-slate-200' },
-    { label: 'Pendentes/Parciais', value: pendingCount + partialCount, icon: Clock, color: 'text-orange-600', bg: 'bg-white border border-slate-200' },
+    { label: 'Vendas Totais', value: formatCurrency(totalGross), icon: TrendingUp, color: 'text-blue-600', bg: 'bg-white border border-slate-200' },
+    { label: 'Pendentes', value: pendingCount + partialCount, icon: Clock, color: 'text-orange-600', bg: 'bg-white border border-slate-200' },
   ];
 
   // Chart Data: Occupation per Bus
@@ -115,13 +121,22 @@ const Dashboard: React.FC = () => {
           <h1 className="text-3xl font-semibold text-[#1b1b1b] tracking-tight mb-1">Visão Geral</h1>
           <p className="text-sm text-[#707070]">Insights em tempo real da operação logística</p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-medium text-[#707070] bg-white px-4 py-2 border border-[#e5e5e5] shadow-sm">
-          <Clock size={14} className="text-[#0067b8]" />
-          <span>Sincronizado: {new Date().toLocaleTimeString('pt-BR')}</span>
+        <div className="flex items-center gap-3 text-xs font-bold text-[#707070] bg-white px-4 py-2 border border-[#e5e5e5] shadow-sm">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-[10px] uppercase tracking-tighter">Live</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock size={12} className="text-[#0067b8]" />
+            <span>{currentTime.toLocaleTimeString('pt-BR')}</span>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {stats.map((stat, i) => (
           <motion.div
             initial={{ opacity: 0, y: 5 }}

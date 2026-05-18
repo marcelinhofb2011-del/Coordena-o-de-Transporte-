@@ -52,8 +52,14 @@ export default function AuditLogsView() {
     }
   };
 
-  const formatActionName = (action: string) => {
-    return action.replace(/_/g, ' ');
+  const formatActionName = (action: LogAction) => {
+    switch (action) {
+      case LogAction.RESERVATION_CREATE: return 'Reserva Criada';
+      case LogAction.RESERVATION_UPDATE: return 'Reserva Atualizada';
+      case LogAction.RESERVATION_DELETE: return 'Reserva Excluída';
+      case LogAction.PAYMENT_UPDATE: return 'Pagamento Atualizado';
+      default: return action;
+    }
   };
 
   return (

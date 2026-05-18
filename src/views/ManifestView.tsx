@@ -176,7 +176,7 @@ export default function ManifestView() {
               <thead>
                 <tr className="border-b border-[#f2f2f2] bg-[#fafafa]">
                   <th className="px-6 py-4 text-xs font-semibold text-[#707070] w-16">#</th>
-                  <th className="px-4 py-4 text-xs font-semibold text-[#707070] text-center print:hidden w-16">Ticket</th>
+                  <th className="px-4 py-4 text-xs font-semibold text-[#707070] text-center print:hidden w-16">Status</th>
                   <th className="px-4 py-4 text-xs font-semibold text-[#707070]">Passageiro</th>
                   <th className="px-4 py-4 text-xs font-semibold text-[#707070] text-center">Documento</th>
                   <th className="px-6 py-4 text-xs font-semibold text-[#707070] text-right">Congregação</th>

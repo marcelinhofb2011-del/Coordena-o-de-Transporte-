@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, updateDoc, doc, deleteDoc, where } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, UserCheck, Shield, MapPin, Trash2, Search, Mail } from 'lucide-react';
 import { db } from '../services/firebase';
@@ -14,18 +14,35 @@ const UsersView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    if (appUser?.role !== UserRole.ADMIN) return;
+    if (!appUser || (appUser.role !== UserRole.ADMIN && appUser.role !== UserRole.COORDINATOR)) return;
 
-    const unsubUsers = onSnapshot(query(collection(db, 'users'), orderBy('createdAt', 'desc')), (snap) => {
+    let userQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+    
+    // If coordinator, only see users from same congregation
+    if (appUser.role === UserRole.COORDINATOR) {
+      if (!appUser.congregationId) {
+        setUsers([]);
+        return;
+      }
+      userQuery = query(
+        collection(db, 'users'), 
+        where('congregationId', '==', appUser.congregationId),
+        orderBy('createdAt', 'desc')
+      );
+    }
+
+    const unsubUsers = onSnapshot(userQuery, (snap) => {
       setUsers(snap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
     });
+    
     const unsubCongs = onSnapshot(collection(db, 'congregations'), (snap) => {
       setCongs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Congregation)));
     });
+    
     return () => { unsubUsers(); unsubCongs(); };
   }, [appUser]);
 
-  if (appUser?.role !== UserRole.ADMIN) {
+  if (!appUser || (appUser.role !== UserRole.ADMIN && appUser.role !== UserRole.COORDINATOR)) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
         <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center">
@@ -33,7 +50,7 @@ const UsersView: React.FC = () => {
         </div>
         <h2 className="text-2xl font-black text-slate-900">Acesso Restrito</h2>
         <p className="text-slate-500 max-w-xs font-medium">
-          Apenas administradores podem gerenciar acessos e permissões de usuários.
+          Você não tem permissão para gerenciar acessos.
         </p>
       </div>
     );
@@ -95,9 +112,13 @@ const UsersView: React.FC = () => {
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Nível de Acesso</label>
                 <select 
-                  className="bg-white border-2 border-slate-600 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                  className={cn(
+                    "bg-white border-2 border-slate-600 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500",
+                    appUser.role !== UserRole.ADMIN && "opacity-50 cursor-not-allowed"
+                  )}
                   value={user.role}
                   onChange={(e) => handleUpdateRole(user.uid, e.target.value as UserRole)}
+                  disabled={appUser.role !== UserRole.ADMIN}
                 >
                   <option value={UserRole.USER}>Apoio</option>
                   <option value={UserRole.COORDINATOR}>Coordenador</option>
@@ -111,10 +132,12 @@ const UsersView: React.FC = () => {
                 <select 
                   className={cn(
                     "bg-white border-2 border-slate-600 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500",
-                    !user.congregationId ? "text-rose-600" : "text-slate-700"
+                    !user.congregationId ? "text-rose-600" : "text-slate-700",
+                    appUser.role !== UserRole.ADMIN && "opacity-50 cursor-not-allowed"
                   )}
                   value={user.congregationId || ''}
                   onChange={(e) => handleUpdateCong(user.uid, e.target.value)}
+                  disabled={appUser.role !== UserRole.ADMIN}
                 >
                   <option value="">NÃO VINCULADO</option>
                   {congs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -142,12 +165,14 @@ const UsersView: React.FC = () => {
                 </div>
               </div>
 
-              <button 
-                onClick={() => deleteDoc(doc(db, 'users', user.uid))}
-                className="p-3 bg-slate-50 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all rounded-xl mt-5"
-              >
-                <Trash2 size={18} />
-              </button>
+              {appUser.role === UserRole.ADMIN && (
+                <button 
+                  onClick={() => deleteDoc(doc(db, 'users', user.uid))}
+                  className="p-3 bg-slate-50 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all rounded-xl mt-5"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
             </div>
           </motion.div>
         ))}

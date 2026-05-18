@@ -51,7 +51,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setTab, isOpen, setIsOpen
     { id: 'settings', label: 'Configurações', icon: SettingsIcon, roles: [UserRole.ADMIN], color: 'text-slate-900', bg: 'bg-slate-100' },
   ];
 
-  const filteredItems = menuItems.filter(item => item.roles.includes(appUser?.role || UserRole.USER));
+  const filteredItems = menuItems.filter(item => {
+    const hasRole = item.roles.includes(appUser?.role || UserRole.USER);
+    if (item.id === 'new-reservation' && appUser?.role === UserRole.USER) {
+      return hasRole && appUser.canSell;
+    }
+    return hasRole;
+  });
 
   return (
     <>

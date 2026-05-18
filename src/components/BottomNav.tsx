@@ -56,7 +56,13 @@ export default function BottomNav({ currentTab, onTabChange }: BottomNavProps) {
     { id: 'settings', label: 'Ajustes', icon: Settings, roles: [UserRole.ADMIN], color: 'text-slate-900', bg: 'bg-slate-900' },
   ];
 
-  const filteredItems = navItems.filter(item => item.roles.includes(appUser.role));
+  const filteredItems = navItems.filter(item => {
+    const hasRole = item.roles.includes(appUser.role);
+    if (item.id === 'new-reservation' && appUser.role === UserRole.USER) {
+      return hasRole && appUser.canSell;
+    }
+    return hasRole;
+  });
 
   return (
     <nav className={cn(

@@ -42,6 +42,7 @@ const NewReservation: React.FC = () => {
     congregationId: appUser?.congregationId || '',
     paymentMethod: 'Pix',
     amountPaid: 0,
+    receivedAmount: 0,
   });
 
   const availableDays = ['Sexta', 'Sábado', 'Domingo'];
@@ -85,6 +86,7 @@ const NewReservation: React.FC = () => {
 
   const totalValue = passengers.length * selectedDays.length * globalPrice;
   const balance = totalValue - formData.amountPaid;
+  const change = Math.max(0, formData.receivedAmount - totalValue);
   const isPaid = formData.amountPaid >= totalValue;
   const isPartial = formData.amountPaid > 0 && formData.amountPaid < totalValue;
 
@@ -98,7 +100,21 @@ const NewReservation: React.FC = () => {
         </div>
         <h2 className="text-2xl font-black text-slate-900">Acesso Restrito</h2>
         <p className="text-slate-500 max-w-xs font-medium">
-          Você não tem permissão para realizar vendas. Entre em contato com o administrador para liberar seu acesso.
+          Sua conta não tem permissão para realizar vendas. Peça ao administrador para liberar a permissão de "Vendas".
+        </p>
+      </div>
+    );
+  }
+
+  if (!appUser?.congregationId && appUser?.role !== UserRole.ADMIN) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center border border-amber-100">
+          <MapPin size={40} />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900">Congregação Necessária</h2>
+        <p className="text-slate-500 max-w-xs font-medium">
+          Você tem permissão de venda, mas sua conta ainda não foi vinculada a uma congregação. Peça ao administrador para fazer o vínculo.
         </p>
       </div>
     );
@@ -169,6 +185,7 @@ const NewReservation: React.FC = () => {
         unitValue: globalPrice,
         totalValue,
         amountPaid: formData.amountPaid,
+        receivedAmount: formData.receivedAmount || formData.amountPaid,
         balance: Math.max(0, balance),
         paymentStatus,
         createdAt: Timestamp.now(),
@@ -185,7 +202,7 @@ const NewReservation: React.FC = () => {
 
       // Notify relevant users
       await createNotification({
-        title: 'Novo Cadastro de Ônibus',
+        title: 'Nova Reserva de Passagens',
         message: `${passengers.length} pass. (${passengers[0].name}) registrados para a congregação ${congregations.find(c => c.id === formData.congregationId)?.name || 'Congregação'}.`,
         type: NotificationType.RESERVATION_NEW,
         targetRoles: [UserRole.ADMIN, UserRole.COORDINATOR],
@@ -201,6 +218,7 @@ const NewReservation: React.FC = () => {
         ...formData,
         notes: '',
         amountPaid: 0,
+        receivedAmount: 0,
       });
     } catch (err: any) {
       setError(err.message || 'Erro ao processar reserva');
@@ -219,7 +237,7 @@ const NewReservation: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tighter mb-1">Novo Registro</h1>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Intelligence Hub</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Central de Registros</p>
           </div>
         </div>
 
@@ -381,7 +399,28 @@ const NewReservation: React.FC = () => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Recebido</label>
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Valor Recebido</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full pl-5 pr-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500 placeholder:text-slate-200"
+                        placeholder="0.00"
+                        value={formData.receivedAmount === 0 ? '' : formData.receivedAmount}
+                        onChange={e => {
+                          const val = e.target.value === '' ? 0 : Number(e.target.value);
+                          // Auto set amountPaid based on received value
+                          // If received >= total, amountPaid = total
+                          // If received < total, amountPaid = received
+                          const autoPaid = val >= totalValue ? totalValue : val;
+                          setFormData({ ...formData, receivedAmount: val, amountPaid: autoPaid });
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Crédito p/ Reserva</label>
                     <div className="relative">
                       <DollarSign className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                       <input
@@ -409,13 +448,13 @@ const NewReservation: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between px-4 py-4 bg-slate-950 rounded-2xl text-white shadow-xl shadow-slate-200">
                     <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
-                      {formData.amountPaid > totalValue ? 'Troco' : 'Em Aberto'}
+                      {formData.receivedAmount > totalValue ? 'Troco' : 'Saldo Devedor'}
                     </span>
                     <span className={cn(
                       "text-2xl font-black tracking-tight", 
-                      formData.amountPaid > totalValue ? "text-emerald-400" : (balance > 0 ? "text-rose-400" : "text-emerald-400")
+                      formData.receivedAmount > totalValue ? "text-emerald-400" : (balance > 0 ? "text-rose-400" : "text-emerald-400")
                     )}>
-                      {formatCurrency(formData.amountPaid > totalValue ? Math.abs(balance) : Math.max(0, balance))}
+                      {formatCurrency(formData.receivedAmount > totalValue ? change : Math.max(0, balance))}
                     </span>
                   </div>
                 </div>

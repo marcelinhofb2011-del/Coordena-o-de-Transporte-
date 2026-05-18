@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
-import { FileText, Download, Filter, FileSpreadsheet, File as FileIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileText, Download, Filter, FileSpreadsheet, File as FileIcon, CheckCircle2, AlertCircle, TrendingUp } from 'lucide-react';
 import { db } from '../services/firebase';
 import { Reservation, Bus, Congregation, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,6 +44,7 @@ const ReportsView: React.FC = () => {
     return matchesBus && matchesCong && matchesStatus && isVisible;
   });
 
+  const totalGross = filtered.reduce((acc, r) => acc + r.totalValue, 0);
   const totalCollected = filtered.reduce((acc, r) => acc + r.amountPaid, 0);
   const totalPending = filtered.reduce((acc, r) => acc + (r.balance > 0 ? r.balance : 0), 0);
 
@@ -81,15 +82,15 @@ const ReportsView: React.FC = () => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12 print:hidden">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-3">Relatórios</h1>
-          <p className="text-slate-500 font-medium">Análise financeira e logística completa em tempo real</p>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-3">Logs Financeiros</h1>
+          <p className="text-slate-500 font-medium">Relatório detalhado de vendas e arrecadação</p>
         </div>
         <div className="flex gap-3">
           <button onClick={handleExportCSV} className="bg-slate-100 text-slate-600 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-slate-200 transition-all shadow-sm">
             <FileSpreadsheet size={18} />
             Exportar CSV
           </button>
-          <button onClick={handlePrint} className="bg-white border border-slate-100 text-slate-900 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-slate-900 hover:text-white transition-all shadow-sm">
+          <button onClick={handlePrint} className="bg-white border border-slate-100 text-slate-900 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
             <Download size={18} />
             Exportar PDF
           </button>
@@ -124,15 +125,15 @@ const ReportsView: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16">
         <div className="group">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-3 text-slate-400 flex items-center gap-2">
-            <CheckCircle2 size={12} className="text-emerald-500" />
-            Total Arrecadado
+            <TrendingUp size={12} className="text-indigo-500" />
+            Total das Passagens
           </p>
-          <p className="text-5xl font-black tracking-tighter text-slate-900">{formatCurrency(totalCollected)}</p>
+          <p className="text-5xl font-black tracking-tighter text-slate-900">{formatCurrency(totalGross)}</p>
         </div>
         <div className="group">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-3 text-slate-400 flex items-center gap-2">
             <AlertCircle size={12} className="text-rose-500" />
-            Total Pendente
+            Saldo Devedor
           </p>
           <p className="text-5xl font-black tracking-tighter text-rose-500">{formatCurrency(totalPending)}</p>
         </div>
