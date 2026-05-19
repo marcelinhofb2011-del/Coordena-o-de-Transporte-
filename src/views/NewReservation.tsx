@@ -95,11 +95,11 @@ const NewReservation: React.FC = () => {
   if (!isAllowedToSell) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-        <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center">
+        <div className="w-20 h-20 bg-rose-50 dark:bg-rose-950/30 text-rose-500 dark:text-rose-400 rounded-full flex items-center justify-center border border-rose-100 dark:border-rose-900/50">
           <Shield size={40} />
         </div>
-        <h2 className="text-2xl font-black text-slate-900">Acesso Restrito</h2>
-        <p className="text-slate-500 max-w-xs font-medium">
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white">Acesso Restrito</h2>
+        <p className="text-slate-500 dark:text-slate-400 max-w-xs font-medium">
           Sua conta não tem permissão para realizar vendas. Peça ao administrador para liberar a permissão de "Vendas".
         </p>
       </div>
@@ -109,11 +109,11 @@ const NewReservation: React.FC = () => {
   if (!appUser?.congregationId && appUser?.role !== UserRole.ADMIN) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-        <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center border border-amber-100">
+        <div className="w-20 h-20 bg-amber-50 dark:bg-amber-950/30 text-amber-500 dark:text-amber-400 rounded-full flex items-center justify-center border border-amber-100 dark:border-amber-900/50">
           <MapPin size={40} />
         </div>
-        <h2 className="text-2xl font-black text-slate-900">Congregação Necessária</h2>
-        <p className="text-slate-500 max-w-xs font-medium">
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white">Congregação Necessária</h2>
+        <p className="text-slate-500 dark:text-slate-400 max-w-xs font-medium">
           Você tem permissão de venda, mas sua conta ainda não foi vinculada a uma congregação. Peça ao administrador para fazer o vínculo.
         </p>
       </div>
@@ -230,21 +230,21 @@ const NewReservation: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6 pb-6 border-b border-slate-100">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6 pb-6 border-b border-slate-100 dark:border-slate-800 transition-colors">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white">
+          <div className="w-12 h-12 bg-slate-900 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-white border border-slate-800 dark:border-slate-700">
             <FileText size={24} />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tighter mb-1">Novo Registro</h1>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Central de Registros</p>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-1">Novo Registro</h1>
+            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Central de Registros</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
           <div>
-            <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1 text-right">Passagem Unitária</p>
-            <p className="text-2xl font-black text-slate-950 tracking-tighter">{formatCurrency(globalPrice)}</p>
+            <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest leading-none mb-1 text-right">Passagem Unitária</p>
+            <p className="text-2xl font-black text-slate-950 dark:text-white tracking-tighter">{formatCurrency(globalPrice)}</p>
           </div>
         </div>
       </div>
@@ -254,15 +254,15 @@ const NewReservation: React.FC = () => {
         <section>
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-900 border border-slate-100">
+              <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center text-slate-900 dark:text-white transition-colors">
                 <UserPlus size={18} />
               </div>
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight leading-none">Passageiros</h2>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">Passageiros</h2>
             </div>
             <button
               type="button"
               onClick={handleAddPassenger}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-[9px] uppercase tracking-widest hover:bg-slate-800 transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-blue-600 text-white rounded-xl font-bold text-[9px] uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-blue-700 transition-all shadow-sm"
             >
               <Plus size={14} />
               Adicionar
@@ -279,16 +279,16 @@ const NewReservation: React.FC = () => {
                 className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end"
               >
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Nome Completo</label>
-                  <input required className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500 placeholder:text-slate-300 transition-all" placeholder="Nome" value={passenger.name} onChange={e => handlePassengerChange(index, 'name', e.target.value)} />
+                  <label className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest ml-1">Nome Completo</label>
+                  <input required className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400 placeholder:text-slate-300 dark:placeholder:text-slate-700 transition-all" placeholder="Nome" value={passenger.name} onChange={e => handlePassengerChange(index, 'name', e.target.value)} />
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 space-y-2">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Documento</label>
-                    <input required className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500 placeholder:text-slate-300 transition-all" placeholder="RG/CPF" value={passenger.document} onChange={e => handlePassengerChange(index, 'document', e.target.value)} />
+                    <label className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest ml-1">Documento</label>
+                    <input required className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400 placeholder:text-slate-300 dark:placeholder:text-slate-700 transition-all" placeholder="RG/CPF" value={passenger.document} onChange={e => handlePassengerChange(index, 'document', e.target.value)} />
                   </div>
                   {passengers.length > 1 && (
-                    <button type="button" onClick={() => handleRemovePassenger(index)} className="p-3 text-rose-500 hover:text-rose-600 transition-all"><X size={16} /></button>
+                    <button type="button" onClick={() => handleRemovePassenger(index)} className="p-3 text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 transition-all"><X size={16} /></button>
                   )}
                 </div>
               </motion.div>
@@ -301,10 +301,10 @@ const NewReservation: React.FC = () => {
             {/* Período */}
             <section>
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-900 border border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center text-slate-900 dark:text-white transition-colors">
                   <Calendar size={18} />
                 </div>
-                <h2 className="text-lg font-bold text-slate-900 tracking-tight leading-none">Período</h2>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">Período</h2>
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -316,8 +316,8 @@ const NewReservation: React.FC = () => {
                     className={cn(
                       "flex-1 min-w-[100px] p-5 rounded-2xl font-bold transition-all flex flex-col items-center gap-1.5 border-2",
                       selectedDays.includes(day)
-                        ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200"
-                        : "bg-white border-slate-500 text-slate-600 hover:border-slate-800"
+                        ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200 dark:shadow-none"
+                        : "bg-white dark:bg-slate-900 border-slate-500 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-800 dark:hover:border-slate-500"
                     )}
                   >
                     <span className="text-2xl">
@@ -334,39 +334,39 @@ const NewReservation: React.FC = () => {
             {/* Logística */}
             <section>
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-900 border border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center text-slate-900 dark:text-white transition-colors">
                   <BusIcon size={18} />
                 </div>
-                <h2 className="text-lg font-bold text-slate-900 tracking-tight leading-none">Logística</h2>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">Logística</h2>
               </div>
 
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Ônibus</label>
+                  <label className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest ml-1">Ônibus</label>
                   <select
                     required
-                    className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500"
+                    className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400"
                     value={formData.busId}
                     onChange={e => setFormData({ ...formData, busId: e.target.value })}
                   >
-                    <option value="">Selecione</option>
+                    <option value="" className="dark:bg-slate-900">Selecione</option>
                     {buses.map(bus => (
-                      <option key={bus.id} value={bus.id}>{bus.name} - {bus.number}</option>
+                      <option key={bus.id} value={bus.id} className="dark:bg-slate-900">{bus.name} - {bus.number}</option>
                     ))}
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Congregação</label>
+                  <label className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest ml-1">Congregação</label>
                   <select
                     required
-                    className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500 disabled:opacity-60"
+                    className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400 disabled:opacity-60"
                     value={formData.congregationId}
                     disabled={appUser?.role !== UserRole.ADMIN}
                     onChange={e => setFormData({ ...formData, congregationId: e.target.value })}
                   >
-                    <option value="">Selecione</option>
+                    <option value="" className="dark:bg-slate-900">Selecione</option>
                     {congregations.map(cong => (
-                      <option key={cong.id} value={cong.id}>{cong.name}</option>
+                      <option key={cong.id} value={cong.id} className="dark:bg-slate-900">{cong.name}</option>
                     ))}
                   </select>
                 </div>
@@ -378,41 +378,39 @@ const NewReservation: React.FC = () => {
             {/* Pagamento */}
             <section>
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-900 border border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center text-slate-900 dark:text-white transition-colors">
                   <CreditCard size={18} />
                 </div>
-                <h2 className="text-lg font-bold text-slate-900 tracking-tight leading-none">Pagamento</h2>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">Pagamento</h2>
               </div>
 
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Método</label>
+                    <label className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest ml-1">Método</label>
                     <select
-                      className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500"
+                      className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400"
                       value={formData.paymentMethod}
                       onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
                     >
-                      <option value="Pix">Pix</option>
-                      <option value="Dinheiro">Dinheiro</option>
-                      <option value="Cartão">Cartão</option>
+                      <option value="Pix" className="dark:bg-slate-900">Pix</option>
+                      <option value="Dinheiro" className="dark:bg-slate-900">Dinheiro</option>
+                      <option value="Cartão" className="dark:bg-slate-900">Cartão</option>
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Valor Recebido</label>
+                    <label className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest ml-1">Valor Recebido</label>
                     <div className="relative">
                       <DollarSign className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                       <input
                         type="number"
                         step="0.01"
-                        className="w-full pl-5 pr-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500 placeholder:text-slate-200"
+                        className="w-full pl-5 pr-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400 placeholder:text-slate-200 dark:placeholder:text-slate-800"
                         placeholder="0.00"
                         value={formData.receivedAmount === 0 ? '' : formData.receivedAmount}
                         onChange={e => {
                           const val = e.target.value === '' ? 0 : Number(e.target.value);
                           // Auto set amountPaid based on received value
-                          // If received >= total, amountPaid = total
-                          // If received < total, amountPaid = received
                           const autoPaid = val >= totalValue ? totalValue : val;
                           setFormData({ ...formData, receivedAmount: val, amountPaid: autoPaid });
                         }}
@@ -420,13 +418,13 @@ const NewReservation: React.FC = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Crédito p/ Reserva</label>
+                    <label className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest ml-1">Crédito p/ Reserva</label>
                     <div className="relative">
                       <DollarSign className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                       <input
                         type="number"
                         step="0.01"
-                        className="w-full pl-5 pr-0 py-3 bg-transparent border-b-2 border-slate-600 outline-none font-bold text-slate-900 focus:border-indigo-500"
+                        className="w-full pl-5 pr-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400"
                         value={formData.amountPaid === 0 ? '' : formData.amountPaid}
                         onChange={e => setFormData({ ...formData, amountPaid: e.target.value === '' ? 0 : Number(e.target.value) })}
                       />
@@ -435,18 +433,18 @@ const NewReservation: React.FC = () => {
                 </div>
 
                 <div className={cn(
-                  "py-3 rounded-xl font-bold text-[9px] tracking-widest text-center uppercase",
-                  isPaid ? "bg-emerald-500/10 text-emerald-600" : (isPartial ? "bg-orange-500/10 text-orange-600" : "bg-slate-100 text-slate-400")
+                  "py-3 rounded-xl font-bold text-[9px] tracking-widest text-center uppercase transition-colors",
+                  isPaid ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : (isPartial ? "bg-orange-500/10 text-orange-600 dark:text-orange-400" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500")
                 )}>
                   {isPaid ? 'LIQUIDADO' : (isPartial ? 'PARCIAL' : 'PENDENTE')}
                 </div>
 
-                <div className="space-y-3 pt-6 border-t border-slate-100">
+                <div className="space-y-3 pt-6 border-t border-slate-100 dark:border-slate-800 transition-colors">
                   <div className="flex items-center justify-between px-2">
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Geral</span>
-                    <span className="text-xl font-black text-slate-900 tracking-tight">{formatCurrency(totalValue)}</span>
+                    <span className="text-xl font-black text-slate-900 dark:text-white tracking-tight">{formatCurrency(totalValue)}</span>
                   </div>
-                  <div className="flex items-center justify-between px-4 py-4 bg-slate-950 rounded-2xl text-white shadow-xl shadow-slate-200">
+                  <div className="flex items-center justify-between px-4 py-4 bg-slate-950 dark:bg-slate-900 rounded-2xl text-white shadow-xl shadow-slate-200 dark:shadow-none transition-colors">
                     <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
                       {formData.receivedAmount > totalValue ? 'Troco' : 'Saldo Devedor'}
                     </span>
@@ -464,7 +462,7 @@ const NewReservation: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-bold text-lg hover:bg-slate-900 transition-all active:scale-[0.98] disabled:opacity-50 shadow-xl shadow-indigo-100 flex items-center justify-center gap-3 lg:mt-6"
+              className="w-full bg-indigo-600 dark:bg-blue-600 text-white py-5 rounded-2xl font-bold text-lg hover:bg-slate-900 dark:hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50 shadow-xl shadow-indigo-100 dark:shadow-none flex items-center justify-center gap-3 lg:mt-6"
             >
               {loading ? (
                 <div className="w-6 h-6 border-4 border-white/20 border-t-white rounded-full animate-spin" />

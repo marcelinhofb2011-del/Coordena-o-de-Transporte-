@@ -15,6 +15,7 @@ import { db } from '../services/firebase';
 import { Bus, Reservation, PaymentStatus, UserRole } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { 
   BarChart, 
   Bar, 
@@ -30,6 +31,7 @@ import {
 
 const Dashboard: React.FC = () => {
   const { appUser } = useAuth();
+  const { theme } = useTheme();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,11 +120,11 @@ const Dashboard: React.FC = () => {
     <div className="space-y-8 pb-12">
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">
         <div>
-          <h1 className="text-3xl font-semibold text-[#1b1b1b] tracking-tight mb-1">Visão Geral</h1>
-          <p className="text-sm text-[#707070]">Insights em tempo real da operação logística</p>
+          <h1 className="text-3xl font-semibold text-[#1b1b1b] dark:text-white tracking-tight mb-1">Visão Geral</h1>
+          <p className="text-sm text-[#707070] dark:text-slate-400">Insights em tempo real da operação logística</p>
         </div>
-        <div className="flex items-center gap-3 text-xs font-bold text-[#707070] bg-white px-4 py-2 border border-[#e5e5e5] shadow-sm">
-          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+        <div className="flex items-center gap-3 text-xs font-bold text-[#707070] bg-white dark:bg-slate-900 px-4 py-2 border border-[#e5e5e5] dark:border-slate-800 shadow-sm transition-colors duration-300">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-full border border-emerald-100 dark:border-emerald-900/50">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -130,8 +132,8 @@ const Dashboard: React.FC = () => {
             <span className="text-[10px] uppercase tracking-tighter">Live</span>
           </div>
           <div className="flex items-center gap-2">
-            <Clock size={12} className="text-[#0067b8]" />
-            <span>{currentTime.toLocaleTimeString('pt-BR')}</span>
+            <Clock size={12} className="text-[#0067b8] dark:text-blue-400" />
+            <span className="dark:text-slate-300">{currentTime.toLocaleTimeString('pt-BR')}</span>
           </div>
         </div>
       </div>
@@ -145,11 +147,11 @@ const Dashboard: React.FC = () => {
             key={stat.label}
             className="ms-card p-6"
           >
-            <p className="text-[10px] font-semibold text-[#707070] uppercase tracking-wider mb-2 flex items-center gap-2">
+            <p className="text-[10px] font-semibold text-[#707070] dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
               <stat.icon size={12} className={stat.color} />
               {stat.label}
             </p>
-            <p className="text-2xl font-bold text-[#1b1b1b]">{stat.value}</p>
+            <p className="text-2xl font-bold text-[#1b1b1b] dark:text-white">{stat.value}</p>
           </motion.div>
         ))}
       </div>
@@ -157,22 +159,28 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4">
         <div className="lg:col-span-2 ms-card p-8">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-8 h-8 bg-[#f2f2f2] flex items-center justify-center text-[#1b1b1b] rounded-sm">
+            <div className="w-8 h-8 bg-[#f2f2f2] dark:bg-slate-800 flex items-center justify-center text-[#1b1b1b] dark:text-white rounded-sm transition-colors">
               <TrendingUp size={16} />
             </div>
-            <h2 className="text-lg font-semibold text-[#1b1b1b]">Ocupação da Frota</h2>
+            <h2 className="text-lg font-semibold text-[#1b1b1b] dark:text-white">Ocupação da Frota</h2>
           </div>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={busOccupationData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#707070', fontSize: 11 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#707070', fontSize: 11 }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#1e293b' : '#f0f0f0'} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: theme === 'dark' ? '#94a3b8' : '#707070', fontSize: 11 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: theme === 'dark' ? '#94a3b8' : '#707070', fontSize: 11 }} />
                 <Tooltip 
-                  cursor={{ fill: '#f2f2f2' }}
-                  contentStyle={{ border: '1px solid #e5e5e5', borderRadius: '2px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  cursor={{ fill: theme === 'dark' ? '#1e293b' : '#f2f2f2' }}
+                  contentStyle={{ 
+                    backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+                    border: theme === 'dark' ? '1px solid #1e293b' : '1px solid #e5e5e5',
+                    borderRadius: '2px', 
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)' 
+                  }}
+                  itemStyle={{ color: theme === 'dark' ? '#f1f5f9' : '#1b1b1b' }}
                 />
-                <Bar dataKey="vagas" fill="#0067b8" radius={[2, 2, 0, 0]} barSize={32} />
+                <Bar dataKey="vagas" fill={theme === 'dark' ? '#3b82f6' : '#0067b8'} radius={[2, 2, 0, 0]} barSize={32} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -180,10 +188,10 @@ const Dashboard: React.FC = () => {
 
         <div className="ms-card p-8">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-8 h-8 bg-[#f2f2f2] flex items-center justify-center text-[#1b1b1b] rounded-sm">
+            <div className="w-8 h-8 bg-[#f2f2f2] dark:bg-slate-800 flex items-center justify-center text-[#1b1b1b] dark:text-white rounded-sm transition-colors">
               <PieIcon size={16} />
             </div>
-            <h2 className="text-lg font-semibold text-[#1b1b1b]">Status Financeiro</h2>
+            <h2 className="text-lg font-semibold text-[#1b1b1b] dark:text-white">Status Financeiro</h2>
           </div>
           <div className="h-[200px] w-full relative mb-6">
             <ResponsiveContainer width="100%" height="100%">
@@ -205,18 +213,18 @@ const Dashboard: React.FC = () => {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <p className="text-xl font-bold text-[#1b1b1b]">{totalPassengers}</p>
-              <p className="text-[10px] text-[#707070] uppercase font-semibold">Total</p>
+              <p className="text-xl font-bold text-[#1b1b1b] dark:text-white">{totalPassengers}</p>
+              <p className="text-[10px] text-[#707070] dark:text-slate-500 uppercase font-semibold">Total</p>
             </div>
           </div>
           <div className="space-y-1">
             {pieData.map(item => (
-              <div key={item.name} className="flex items-center justify-between py-2 border-b border-[#f2f2f2] last:border-0">
+              <div key={item.name} className="flex items-center justify-between py-2 border-b border-[#f2f2f2] dark:border-slate-800 last:border-0">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-xs text-[#707070] font-medium">{item.name}</span>
+                  <span className="text-xs text-[#707070] dark:text-slate-400 font-medium">{item.name}</span>
                 </div>
-                <span className="text-sm font-semibold text-[#1b1b1b]">{item.value}</span>
+                <span className="text-sm font-semibold text-[#1b1b1b] dark:text-slate-200">{item.value}</span>
               </div>
             ))}
           </div>
@@ -225,43 +233,43 @@ const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
         <div className="ms-card p-8">
-          <h3 className="text-base font-semibold text-[#1b1b1b] mb-6 flex items-center gap-2">
-            <AlertTriangle className="text-[#0067b8]" size={18} />
+          <h3 className="text-base font-semibold text-[#1b1b1b] dark:text-white mb-6 flex items-center gap-2">
+            <AlertTriangle className="text-[#0067b8] dark:text-blue-400" size={18} />
             Ocupação Geral
           </h3>
           <div className="space-y-3">
             <div className="flex justify-between items-end">
-              <span className="text-2xl font-bold text-[#1b1b1b] tracking-tight">{occupationPercent.toFixed(1)}%</span>
-              <span className="text-xs text-[#707070] font-medium">{occupiedSeats} / {totalSeats} assentos</span>
+              <span className="text-2xl font-bold text-[#1b1b1b] dark:text-white tracking-tight">{occupationPercent.toFixed(1)}%</span>
+              <span className="text-xs text-[#707070] dark:text-slate-400 font-medium">{occupiedSeats} / {totalSeats} assentos</span>
             </div>
-            <div className="h-2 w-full bg-[#f2f2f2] rounded-full overflow-hidden">
+            <div className="h-2 w-full bg-[#f2f2f2] dark:bg-slate-800 rounded-full overflow-hidden transition-colors">
               <motion.div 
                 initial={{ width: 0 }}
                 animate={{ width: `${occupationPercent}%` }}
-                className="h-full bg-[#0067b8]"
+                className="h-full bg-[#0067b8] dark:bg-blue-500"
               />
             </div>
           </div>
         </div>
 
-        <div className="ms-card p-8 bg-[#fafafa] relative overflow-hidden group">
+        <div className="ms-card p-8 bg-[#fafafa] dark:bg-slate-900/50 relative overflow-hidden group">
           <div className="relative z-10">
-            <h3 className="text-xs font-bold mb-6 flex items-center gap-2 text-[#0067b8] uppercase tracking-wider">
+            <h3 className="text-xs font-bold mb-6 flex items-center gap-2 text-[#0067b8] dark:text-blue-400 uppercase tracking-wider">
               <BusIcon size={16} />
               Logística de Frotas
             </h3>
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <p className="text-[10px] font-semibold text-[#707070] uppercase tracking-wider mb-1">Lotados</p>
-                <p className="text-2xl font-bold text-[#1b1b1b]">{fullBuses}</p>
+                <p className="text-[10px] font-semibold text-[#707070] dark:text-slate-400 uppercase tracking-wider mb-1">Lotados</p>
+                <p className="text-2xl font-bold text-[#1b1b1b] dark:text-white">{fullBuses}</p>
               </div>
               <div>
-                <p className="text-[10px] font-semibold text-[#707070] uppercase tracking-wider mb-1">Disponíveis</p>
-                <p className="text-2xl font-bold text-[#1b1b1b]">{buses.length - fullBuses}</p>
+                <p className="text-[10px] font-semibold text-[#707070] dark:text-slate-400 uppercase tracking-wider mb-1">Disponíveis</p>
+                <p className="text-2xl font-bold text-[#1b1b1b] dark:text-white">{buses.length - fullBuses}</p>
               </div>
             </div>
           </div>
-          <BusIcon size={80} className="absolute -right-4 -bottom-4 text-[#e5e5e5] opacity-40 rotate-12" />
+          <BusIcon size={80} className="absolute -right-4 -bottom-4 text-[#e5e5e5] dark:text-slate-700 opacity-40 dark:opacity-10 rotate-12" />
         </div>
       </div>
     </div>

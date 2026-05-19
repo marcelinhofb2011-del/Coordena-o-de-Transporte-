@@ -66,8 +66,8 @@ export default function BottomNav({ currentTab, onTabChange }: BottomNavProps) {
 
   return (
     <nav className={cn(
-      "lg:hidden left-0 right-0 z-40 print:hidden bg-white border-t-2 border-slate-600 transition-all duration-300",
-      isInputFocused ? "relative" : "fixed bottom-0"
+      "lg:hidden left-0 right-0 z-40 print:hidden bg-white dark:bg-slate-900 border-t-2 border-slate-600 dark:border-slate-800 transition-all duration-300",
+      isInputFocused ? "relative" : "fixed bottom-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] dark:shadow-black/20"
     )}>
       <div className="px-2 py-2 flex items-center justify-around">
         {filteredItems.map((item) => {
@@ -78,16 +78,16 @@ export default function BottomNav({ currentTab, onTabChange }: BottomNavProps) {
               onClick={() => onTabChange(item.id)}
               className={cn(
                 "flex flex-col items-center gap-0.5 py-1 px-3 transition-all duration-300 relative rounded-md",
-                isActive ? "text-[#0067b8]" : "text-[#707070]"
+                isActive ? "text-[#0067b8] dark:text-blue-400" : "text-[#707070] dark:text-slate-500"
               )}
             >
               <div className={cn(
                 "w-8 h-8 flex items-center justify-center rounded-md transition-all duration-300",
-                isActive ? "bg-[#f2f2f2]" : "bg-transparent"
+                isActive ? "bg-[#f2f2f2] dark:bg-slate-800" : "bg-transparent"
               )}>
                 <item.icon size={18} />
               </div>
-              <span className={cn("text-[10px] font-medium leading-none mt-1", !isActive && "opacity-60")}>
+              <span className={cn("text-[10px] font-medium leading-none mt-1 transition-colors", !isActive && "opacity-60")}>
                 {item.label}
               </span>
             </button>

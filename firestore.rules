@@ -101,6 +101,7 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow list, get: if isAdmin();
       allow create: if isSignedIn();
+      allow delete: if isAdmin();
     }
 
     match /notifications/{notifId} {

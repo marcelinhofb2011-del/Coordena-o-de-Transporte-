@@ -5,9 +5,25 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
+@variant dark (&:where(.dark, .dark *));
+
 @layer base {
+  :root {
+    color-scheme: light;
+  }
+  
+  .dark {
+    color-scheme: dark;
+  }
+
+  /* Global Dark Mode Fallback */
+  .dark body {
+    background-color: #020617 !important;
+    color: #f8fafc !important;
+  }
+
   body {
-    @apply antialiased text-[#1b1b1b] bg-[#f2f2f2];
+    @apply antialiased text-[#1b1b1b] dark:text-white bg-[#f2f2f2] dark:bg-slate-950 transition-colors duration-300;
     overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -16,15 +32,15 @@
 
 /* Base Card Style inspired by Microsoft Fluent */
 .ms-card {
-  @apply bg-white border border-[#e5e5e5] shadow-[0_2px_4px_rgba(0,0,0,0.05)] transition-all;
+  @apply bg-white dark:bg-slate-900 border border-[#e5e5e5] dark:border-slate-800 shadow-[0_2px_4px_rgba(0,0,0,0.05)] transition-all;
 }
 
 .ms-button-primary {
-  @apply bg-[#0067b8] text-white hover:bg-[#005da6] transition-all font-semibold px-4 py-2 text-sm;
+  @apply bg-[#0067b8] dark:bg-blue-600 text-white hover:bg-[#005da6] dark:hover:bg-blue-700 transition-all font-semibold px-4 py-2 text-sm;
 }
 
 .ms-button-secondary {
-  @apply bg-[#ffffff] border border-[#8a8a8a] text-[#1b1b1b] hover:bg-[#f3f3f3] transition-all font-semibold px-4 py-2 text-sm;
+  @apply bg-[#ffffff] dark:bg-slate-800 border border-[#8a8a8a] dark:border-slate-700 text-[#1b1b1b] dark:text-white hover:bg-[#f3f3f3] dark:hover:bg-slate-700 transition-all font-semibold px-4 py-2 text-sm;
 }
 
 /* Print Optimization for PDF Export */

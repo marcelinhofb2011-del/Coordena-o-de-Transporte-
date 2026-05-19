@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, LogOut, Shield } from 'lucide-react';
+import { Menu, LogOut, Shield, Sun, Moon } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { logout } from './services/firebase';
 import LoginView from './views/LoginView';
@@ -16,11 +16,13 @@ import ManifestView from './views/ManifestView';
 import AuditLogsView from './views/AuditLogsView';
 import UsersView from './views/UsersView';
 import SettingsView from './views/SettingsView';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { UserRole } from './types';
 import NotificationBell from './components/NotificationBell';
 
-export default function App() {
+function AppContent() {
   const { appUser, user, loading } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -34,7 +36,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f2f2f2] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f2f2f2] dark:bg-slate-950 flex items-center justify-center transition-colors duration-300">
         <motion.div 
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -51,16 +53,16 @@ export default function App() {
   // Lógica de bloqueio para usuários não vinculados
   if (appUser && appUser.role !== UserRole.ADMIN && !appUser.congregationId) {
     return (
-      <div className="min-h-screen bg-[#f2f2f2] flex items-center justify-center p-6 text-center">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md ms-card p-10">
-          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-sm flex items-center justify-center mx-auto mb-8 border border-amber-100">
+      <div className="min-h-screen bg-[#f2f2f2] dark:bg-slate-950 flex items-center justify-center p-6 text-center transition-colors duration-300">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md ms-card p-10 dark:bg-slate-900 dark:border-slate-800">
+          <div className="w-16 h-16 bg-amber-50 dark:bg-amber-950/30 text-amber-600 rounded-sm flex items-center justify-center mx-auto mb-8 border border-amber-100 dark:border-amber-900/50">
             <Shield size={32} />
           </div>
-          <h2 className="text-2xl font-bold text-[#1b1b1b] mb-4">Acesso Restrito</h2>
-          <p className="text-[#707070] text-sm mb-8">
+          <h2 className="text-2xl font-bold text-[#1b1b1b] dark:text-white mb-4">Acesso Restrito</h2>
+          <p className="text-[#707070] dark:text-slate-400 text-sm mb-8">
             Seu perfil ({appUser.role === UserRole.COORDINATOR ? 'Coordenador' : 'Apoio'}) ainda não foi vinculado a uma congregação. Por favor, peça ao administrador para vincular sua conta a uma congregação e liberar as permissões necessárias.
           </p>
-          <div className="p-3 bg-[#f2f2f2] rounded-sm text-[10px] font-mono text-[#707070] break-all mb-8 text-left">
+          <div className="p-3 bg-[#f2f2f2] dark:bg-slate-800 rounded-sm text-[10px] font-mono text-[#707070] dark:text-slate-400 break-all mb-8 text-left">
             USUÁRIO: {appUser.email}<br/>
             ROLE: {appUser.role}<br/>
             UID: {user.uid}
@@ -94,7 +96,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f2f2f2] flex overflow-hidden font-sans">
+    <div className="min-h-screen bg-[#f2f2f2] dark:bg-slate-950 flex overflow-hidden font-sans transition-colors duration-300">
       <Sidebar 
         currentTab={currentTab} 
         setTab={setCurrentTab} 
@@ -104,31 +106,38 @@ export default function App() {
 
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative">
         {/* Header - Minimal and fluid */}
-        <header className="px-6 py-3 md:px-8 bg-white border-b border-[#e5e5e5] print:hidden">
+        <header className="px-6 py-3 md:px-8 bg-white dark:bg-slate-900 border-b border-[#e5e5e5] dark:border-slate-800 print:hidden transition-colors duration-300">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 text-[#1b1b1b] hover:bg-[#f2f2f2] rounded-sm transition-all active:scale-95 border border-[#e5e5e5]"
+                className="lg:hidden p-2 text-[#1b1b1b] dark:text-white hover:bg-[#f2f2f2] dark:hover:bg-slate-800 rounded-sm transition-all active:scale-95 border border-[#e5e5e5] dark:border-slate-700"
               >
                 <Menu size={18} />
               </button>
-              <h2 className="text-xs font-bold text-[#1b1b1b] uppercase tracking-wider flex items-center gap-2">
-                <span className="text-[#0067b8]">COORDENAÇÃO</span>
-                <span className="text-[#707070] font-normal">| TRANSPORTE</span>
+              <h2 className="text-xs font-bold text-[#1b1b1b] dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <span className="text-[#0067b8] dark:text-blue-400">COORDENAÇÃO</span>
+                <span className="text-[#707070] dark:text-slate-400 font-normal">| TRANSPORTE</span>
               </h2>
             </div>
 
             <div className="flex items-center gap-3">
+              <button 
+                onClick={toggleTheme}
+                className="p-2 text-[#707070] dark:text-slate-400 hover:bg-[#f2f2f2] dark:hover:bg-slate-800 rounded-sm transition-all"
+                title={theme === 'light' ? 'Ativar Modo Escuro' : 'Ativar Modo Claro'}
+              >
+                {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+              </button>
               <NotificationBell />
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-semibold text-[#1b1b1b] leading-none mb-0.5">{appUser?.name || 'Carregando...'}</p>
-                <p className="text-[10px] font-medium text-[#0067b8] uppercase tracking-wide leading-none">
+                <p className="text-xs font-semibold text-[#1b1b1b] dark:text-white leading-none mb-0.5">{appUser?.name || 'Carregando...'}</p>
+                <p className="text-[10px] font-medium text-[#0067b8] dark:text-blue-400 uppercase tracking-wide leading-none">
                   {appUser?.role === UserRole.ADMIN ? 'Administrador' : 
                    appUser?.role === UserRole.COORDINATOR ? 'Coordenador' : 'Apoio'}
                 </p>
               </div>
-              <div className="w-8 h-8 rounded-sm bg-slate-900 text-white flex items-center justify-center font-bold text-xs uppercase">
+              <div className="w-8 h-8 rounded-sm bg-slate-900 dark:bg-slate-700 text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm">
                 {(appUser?.name || 'U').charAt(0)}
               </div>
             </div>
@@ -136,7 +145,7 @@ export default function App() {
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto pb-32 lg:pb-12 bg-white">
+        <div className="flex-1 overflow-y-auto pb-32 lg:pb-12 bg-white dark:bg-slate-950 transition-colors duration-300">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentTab}
@@ -154,5 +163,13 @@ export default function App() {
         <BottomNav currentTab={currentTab} onTabChange={setCurrentTab} />
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }

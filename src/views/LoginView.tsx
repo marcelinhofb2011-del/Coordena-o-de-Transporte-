@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bus as BusIcon, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { Bus as BusIcon, Mail, Lock, User, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { loginWithGoogle, loginWithMicrosoft, loginWithEmail, registerWithEmail } from '../services/firebase';
 
 const LoginView: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,31 +58,31 @@ const LoginView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f2f2f2] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f2f2f2] dark:bg-slate-950 flex items-center justify-center p-4 transition-colors duration-300">
       {/* Background shape for depth */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[10%] -right-[5%] w-[40%] h-[40%] bg-indigo-50 rounded-full blur-3xl opacity-50" />
-        <div className="absolute -bottom-[10%] -left-[5%] w-[40%] h-[40%] bg-slate-200 rounded-full blur-3xl opacity-30" />
+        <div className="absolute -top-[10%] -right-[5%] w-[40%] h-[40%] bg-indigo-50 dark:bg-indigo-950/20 rounded-full blur-3xl opacity-50" />
+        <div className="absolute -bottom-[10%] -left-[5%] w-[40%] h-[40%] bg-slate-200 dark:bg-slate-900/20 rounded-full blur-3xl opacity-30" />
       </div>
 
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3 }}
-        className="w-full max-w-[440px] bg-white p-11 shadow-[0_2px_4px_rgba(0,0,0,0.1),0_12px_28px_rgba(0,0,0,0.1)] relative z-10"
+        className="w-full max-w-[440px] bg-white dark:bg-slate-900 p-11 shadow-[0_2px_4px_rgba(0,0,0,0.1),0_12px_28px_rgba(0,0,0,0.1)] relative z-10 border border-transparent dark:border-slate-800 transition-colors"
       >
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 bg-slate-900 flex items-center justify-center text-white rounded-sm">
+            <div className="w-8 h-8 bg-slate-900 dark:bg-slate-700 flex items-center justify-center text-white rounded-sm shrink-0">
               <BusIcon size={18} />
             </div>
-            <span className="font-bold text-slate-900 tracking-tighter uppercase text-base leading-tight">Coordenação de Transporte</span>
+            <span className="font-bold text-slate-900 dark:text-white tracking-tighter uppercase text-base leading-tight">Coordenação de Transporte</span>
           </div>
           
-          <h1 className="text-2xl font-semibold text-[#1b1b1b] mb-1">
+          <h1 className="text-2xl font-semibold text-[#1b1b1b] dark:text-white mb-1">
             {isRegister ? 'Criar conta' : 'Entrar'}
           </h1>
-          <p className="text-sm text-[#1b1b1b]">
+          <p className="text-sm text-[#1b1b1b] dark:text-slate-400">
             {isRegister ? 'Crie sua conta para começar.' : 'Acesse para continuar agora.'}
           </p>
         </div>
@@ -99,7 +100,7 @@ const LoginView: React.FC = () => {
                   required={isRegister}
                   type="text"
                   placeholder="Nome completo"
-                  className="w-full px-0 py-2.5 bg-transparent border-b-2 border-slate-900 outline-none text-sm text-[#1b1b1b] focus:border-[#0067b8] transition-all placeholder:text-slate-400"
+                  className="w-full px-0 py-2.5 bg-transparent border-b-2 border-slate-900 dark:border-slate-700 outline-none text-sm text-[#1b1b1b] dark:text-white focus:border-[#0067b8] dark:focus:border-blue-400 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
                   value={name}
                   onChange={e => setName(e.target.value)}
                 />
@@ -112,21 +113,36 @@ const LoginView: React.FC = () => {
               required
               type="email"
               placeholder="E-mail ou telefone"
-              className="w-full px-0 py-2.5 bg-transparent border-b-2 border-slate-900 outline-none text-sm text-[#1b1b1b] focus:border-[#0067b8] transition-all placeholder:text-slate-400"
+              className="w-full px-0 py-2.5 bg-transparent border-b-2 border-slate-900 dark:border-slate-700 outline-none text-sm text-[#1b1b1b] dark:text-white focus:border-[#0067b8] dark:focus:border-blue-400 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
               value={email}
               onChange={e => setEmail(e.target.value)}
             />
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1 relative">
             <input
               required
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="Senha"
-              className="w-full px-0 py-2.5 bg-transparent border-b-2 border-slate-900 outline-none text-sm text-[#1b1b1b] focus:border-[#0067b8] transition-all placeholder:text-slate-400"
+              className="w-full px-0 py-2.5 bg-transparent border-b-2 border-slate-900 dark:border-slate-700 outline-none text-sm text-[#1b1b1b] dark:text-white focus:border-[#0067b8] dark:focus:border-blue-400 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 pr-10"
               value={password}
               onChange={e => setPassword(e.target.value)}
             />
+            <AnimatePresence>
+              {password.length > 0 && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="pt-2 text-xs text-slate-500">
@@ -136,7 +152,7 @@ const LoginView: React.FC = () => {
               <button 
                 type="button"
                 onClick={() => setIsRegister(true)}
-                className="text-[#0067b8] hover:underline"
+                className="text-[#0067b8] dark:text-blue-400 hover:underline"
               >
                 Não tem uma conta? Crie uma!
               </button>
@@ -152,7 +168,7 @@ const LoginView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsRegister(false)}
-                className="px-8 py-2 bg-[#cccccc] text-[#1b1b1b] text-sm font-semibold hover:bg-[#b3b3b3] transition-all"
+                className="px-8 py-2 bg-[#cccccc] dark:bg-slate-800 text-[#1b1b1b] dark:text-white text-sm font-semibold hover:bg-[#b3b3b3] dark:hover:bg-slate-700 transition-all"
               >
                 Voltar
               </button>
@@ -160,7 +176,7 @@ const LoginView: React.FC = () => {
             <button
               disabled={loading}
               type="submit"
-              className="px-8 py-2 bg-[#0067b8] text-white text-sm font-semibold hover:bg-[#005da6] transition-all disabled:opacity-50"
+              className="px-8 py-2 bg-[#0067b8] dark:bg-blue-600 text-white text-sm font-semibold hover:bg-[#005da6] dark:hover:bg-blue-700 transition-all disabled:opacity-50"
             >
               {loading ? (isRegister ? 'Criando...' : 'Entrando...') : (isRegister ? 'Criar' : 'Próximo')}
             </button>
@@ -170,10 +186,10 @@ const LoginView: React.FC = () => {
         <div className="mt-12">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200"></div>
+              <div className="w-full border-t border-slate-200 dark:border-slate-800"></div>
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-4 text-slate-400 uppercase tracking-widest font-bold text-[9px]">Opções de entrada</span>
+              <span className="bg-white dark:bg-slate-900 px-4 text-slate-400 dark:text-slate-600 uppercase tracking-widest font-bold text-[9px]">Opções de entrada</span>
             </div>
           </div>
 
@@ -181,7 +197,7 @@ const LoginView: React.FC = () => {
             <button
               disabled={loading}
               onClick={() => handleSocialLogin('google')}
-              className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-medium flex items-center justify-center gap-3 hover:bg-slate-50 transition-all disabled:opacity-50"
+              className="w-full py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium flex items-center justify-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
             >
               <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
               {loading ? 'Processando...' : 'Entrar com o Google'}
@@ -190,7 +206,7 @@ const LoginView: React.FC = () => {
             <button
               disabled={loading}
               onClick={() => handleSocialLogin('microsoft')}
-              className="w-full py-2.5 bg-[#2f2f2f] text-white text-sm font-medium flex items-center justify-center gap-3 hover:bg-black transition-all disabled:opacity-50"
+              className="w-full py-2.5 bg-[#2f2f2f] dark:bg-slate-700 text-white text-sm font-medium flex items-center justify-center gap-3 hover:bg-black dark:hover:bg-slate-600 transition-all disabled:opacity-50"
             >
               <img src="https://www.microsoft.com/favicon.ico" alt="Microsoft" className="w-4 h-4 invert" />
               {loading ? 'Processando...' : 'Entrar com a Microsoft'}
