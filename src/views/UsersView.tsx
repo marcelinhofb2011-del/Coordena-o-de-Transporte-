@@ -16,7 +16,7 @@ const UsersView: React.FC = () => {
   useEffect(() => {
     if (!appUser || (appUser.role !== UserRole.ADMIN && appUser.role !== UserRole.COORDINATOR)) return;
 
-    let userQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+    let userQuery = query(collection(db, 'users'));
     
     // If coordinator, only see users from same congregation
     if (appUser.role === UserRole.COORDINATOR) {
@@ -26,13 +26,21 @@ const UsersView: React.FC = () => {
       }
       userQuery = query(
         collection(db, 'users'), 
-        where('congregationId', '==', appUser.congregationId),
-        orderBy('createdAt', 'desc')
+        where('congregationId', '==', appUser.congregationId)
       );
     }
 
     const unsubUsers = onSnapshot(userQuery, (snap) => {
-      setUsers(snap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
+      const sortedUsers = snap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
+      // Sort client-side by createdAt descending to avoid composite index requirements
+      sortedUsers.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+      });
+      setUsers(sortedUsers);
+    }, (error) => {
+      console.error("Error loading users:", error);
     });
     
     const unsubCongs = onSnapshot(collection(db, 'congregations'), (snap) => {

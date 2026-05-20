@@ -41,8 +41,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Or target the user's congregation (if relevant)
     const q = query(
       collection(db, 'notifications'),
-      where('targetRoles', 'array-contains', appUser.role),
-      orderBy('createdAt', 'desc')
+      where('targetRoles', 'array-contains', appUser.role)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -50,6 +49,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         id: doc.id, 
         ...doc.data() 
       } as Notification));
+
+      // Sort in-memory client-side by createdAt descending to avoid composite index requirements
+      filtered.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+      });
 
       // Further filter by congregation if specified in the notification
       filtered = filtered.filter(notif => {

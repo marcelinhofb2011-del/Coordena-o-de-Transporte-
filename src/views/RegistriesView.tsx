@@ -46,6 +46,7 @@ const RegistriesView: React.FC = () => {
   const [editRes, setEditRes] = useState<Reservation | null>(null);
   const [newAmount, setNewAmount] = useState<number>(0);
   const [updating, setUpdating] = useState(false);
+  const [editDays, setEditDays] = useState<string[]>([]);
 
   // Receipt State
   const [receivedAmount, setReceivedAmount] = useState<number>(0);
@@ -53,7 +54,7 @@ const RegistriesView: React.FC = () => {
 
   useEffect(() => {
     if (!appUser) return;
-    let resQuery = query(collection(db, 'reservations'), orderBy('createdAt', 'desc'));
+    let resQuery = query(collection(db, 'reservations'));
     if (appUser.role === UserRole.COORDINATOR && appUser.congregationId) {
       resQuery = query(resQuery, where('congregationId', '==', appUser.congregationId));
     } else if (appUser.role === UserRole.USER) {
@@ -61,7 +62,16 @@ const RegistriesView: React.FC = () => {
     }
 
     const unsubRes = onSnapshot(resQuery, (snap) => {
-      setReservations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation)));
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation));
+      // Sort in-memory client-side by createdAt descending to avoid composite index requirements
+      data.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+      });
+      setReservations(data);
+    }, (error) => {
+      console.error("Error loading reservations:", error);
     });
     const unsubB = onSnapshot(collection(db, 'buses'), (snap) => {
       setBuses(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bus)));
@@ -107,29 +117,39 @@ const RegistriesView: React.FC = () => {
 
   const handleUpdatePayment = async () => {
     if (!editRes) return;
+    if (editDays.length === 0) {
+      alert('Selecione pelo menos um dia de viagem.');
+      return;
+    }
     setUpdating(true);
     try {
+      const modalUnitValue = editRes.unitValue || 60;
+      const modalPassengersCount = editRes.passengers?.length || 1;
+      const computedTotalValue = modalPassengersCount * editDays.length * modalUnitValue;
       const updatedAmount = editRes.amountPaid + newAmount;
-      const isPaid = updatedAmount >= editRes.totalValue;
-      const isPartial = updatedAmount > 0 && updatedAmount < editRes.totalValue;
+      const isPaid = updatedAmount >= computedTotalValue;
+      const isPartial = updatedAmount > 0 && updatedAmount < computedTotalValue;
       const status = isPaid ? PaymentStatus.PAGO : (isPartial ? PaymentStatus.PARCIAL : PaymentStatus.PENDENTE);
+      const newBalance = Math.max(0, computedTotalValue - updatedAmount);
 
       await updateDoc(doc(db, 'reservations', editRes.id), {
+        days: editDays,
+        totalValue: computedTotalValue,
         amountPaid: updatedAmount,
-        balance: Math.max(0, editRes.totalValue - updatedAmount),
+        balance: newBalance,
         paymentStatus: status
       });
       
       await createAuditLog(
         LogAction.PAYMENT_UPDATE,
-        `Pagamento atualizado em R$ ${newAmount}. Novo saldo: R$ ${Math.max(0, editRes.totalValue - updatedAmount)}`,
+        `Reserva/Pagamento atualizado. Dias: ${editDays.join(', ')}. Valor Total: R$ ${computedTotalValue}. Pago: R$ ${updatedAmount}. Novo saldo: R$ ${newBalance}`,
         editRes.id
       );
 
       // Notify about payment update
       await createNotification({
-        title: 'Pagamento Atualizado',
-        message: `Novo pagamento de ${formatCurrency(newAmount)} para ${editRes.passengers?.[0]?.name}. Saldo: ${formatCurrency(Math.max(0, editRes.totalValue - updatedAmount))}`,
+        title: 'Reserva/Pagamento Atualizado',
+        message: `Reserva de ${editRes.passengers?.[0]?.name} atualizada. Dias: ${editDays.join(', ')}. Total: ${formatCurrency(computedTotalValue)}. Pago: ${formatCurrency(updatedAmount)}. Saldo: ${formatCurrency(newBalance)}`,
         type: NotificationType.RESERVATION_NEW,
         targetRoles: [UserRole.ADMIN, UserRole.COORDINATOR],
         congregationId: editRes.congregationId,
@@ -138,8 +158,9 @@ const RegistriesView: React.FC = () => {
 
       setEditRes(null);
       setNewAmount(0);
+      setEditDays([]);
     } catch (error) {
-      console.error('Error updating payment:', error);
+      console.error('Error updating reservation & payment:', error);
     } finally {
       setUpdating(false);
     }
@@ -334,7 +355,7 @@ const RegistriesView: React.FC = () => {
                   <td className="px-6 py-5">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => { setShowReceipt(res); setReceivedAmount(res.receivedAmount || res.totalValue); }} className="p-2 text-[#707070] dark:text-slate-400 hover:text-[#0067b8] dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-800 rounded-sm transition-all"><Printer size={16} /></button>
-                      <button onClick={() => { setEditRes(res); setNewAmount(0); }} className="p-2 text-[#707070] dark:text-slate-400 hover:text-[#0067b8] dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-800 rounded-sm transition-all"><CreditCard size={16} /></button>
+                      <button onClick={() => { setEditRes(res); setNewAmount(0); setEditDays(res.days || []); }} className="p-2 text-[#707070] dark:text-slate-400 hover:text-[#0067b8] dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-800 rounded-sm transition-all" title="Editar dias e pagamento"><CreditCard size={16} /></button>
                       <button onClick={() => setDeleteId(res.id)} className="p-2 text-[#707070] dark:text-slate-400 hover:text-[#e81123] dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-sm transition-all"><Trash2 size={16} /></button>
                     </div>
                   </td>
@@ -374,51 +395,104 @@ const RegistriesView: React.FC = () => {
         {editRes && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditRes(null)} className="absolute inset-0 bg-slate-900/60 dark:bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl border border-black/5 dark:border-white/5">
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl border border-black/5 dark:border-white/5 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
               <div className="flex items-center justify-between mb-8">
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white">Pagamento</h3>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white">Editar Reserva</h3>
+                  <p className="text-xs font-bold text-[#707070] dark:text-slate-400 mt-1 uppercase tracking-tight">
+                    {editRes.passengers?.[0]?.name} {editRes.passengers && editRes.passengers.length > 1 && `(+${editRes.passengers.length - 1} dependentes)`}
+                  </p>
+                </div>
                 <button onClick={() => setEditRes(null)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-400 dark:text-slate-500 transition-colors"><X size={24} /></button>
               </div>
               
               <div className="space-y-6">
-                <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 transition-colors">
-                  <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Resumo da Conta</p>
-                  <div className="flex justify-between items-end mb-2">
-                    <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Valor Total</span>
-                    <span className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(editRes.totalValue)}</span>
-                  </div>
-                  <div className="flex justify-between items-end mb-2">
-                    <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Já Pago</span>
-                    <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(editRes.amountPaid)}</span>
-                  </div>
-                  <div className="flex justify-between items-end pt-3 border-t border-slate-200 dark:border-slate-700">
-                    <span className="text-sm font-bold text-slate-900 dark:text-slate-300">Saldo Restante</span>
-                    <span className="text-2xl font-black text-rose-500 dark:text-rose-400">{formatCurrency(editRes.balance)}</span>
+                {/* Travel Days Selection */}
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Dias de Viagem</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Sexta', 'Sábado', 'Domingo'].map((day) => {
+                      const isSelected = editDays.includes(day);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setEditDays(editDays.filter(d => d !== day));
+                            } else {
+                              setEditDays([...editDays, day]);
+                            }
+                          }}
+                          className={cn(
+                            "py-3 rounded-xl border-2 font-bold text-xs transition-colors uppercase tracking-wider",
+                            isSelected
+                              ? "bg-slate-900 dark:bg-blue-600 border-slate-900 dark:border-blue-600 text-white"
+                              : "bg-[#f2f2f2] dark:bg-slate-800/50 border-transparent text-[#707070] dark:text-slate-400 hover:bg-[#eaeaea] dark:hover:bg-slate-800"
+                          )}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Acrescentar Valor (R$)</label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="0,00"
-                      className="w-full pl-14 pr-5 py-5 bg-white dark:bg-slate-950 border-2 border-slate-600 dark:border-slate-800 rounded-2xl outline-none text-2xl font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-blue-500 transition-all shadow-inner"
-                      value={newAmount === 0 ? '' : newAmount}
-                      onChange={(e) => setNewAmount(e.target.value === '' ? 0 : Number(e.target.value))}
-                      autoFocus
-                    />
-                  </div>
-                </div>
+                {/* Calculation Summary */}
+                {(() => {
+                  const modalUnitValue = editRes.unitValue || 60;
+                  const modalPassengersCount = editRes.passengers?.length || 1;
+                  const computedTotalValue = modalPassengersCount * editDays.length * modalUnitValue;
+                  const computedBalance = Math.max(0, computedTotalValue - (editRes.amountPaid + newAmount));
+                  return (
+                    <>
+                      <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 transition-colors">
+                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Resumo da Conta</p>
+                        <div className="flex justify-between items-end mb-2">
+                          <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Valor Total</span>
+                          <span className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(computedTotalValue)}</span>
+                        </div>
+                        <div className="flex justify-between items-end mb-2">
+                          <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Já Pago</span>
+                          <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(editRes.amountPaid)}</span>
+                        </div>
+                        {newAmount > 0 && (
+                          <div className="flex justify-between items-end mb-2">
+                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Novo Pagamento</span>
+                            <span className="text-lg font-bold text-blue-600 dark:text-blue-400">+{formatCurrency(newAmount)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-end pt-3 border-t border-slate-200 dark:border-slate-700">
+                          <span className="text-sm font-bold text-slate-900 dark:text-slate-300">Saldo Restante</span>
+                          <span className="text-2xl font-black text-rose-500 dark:text-rose-400">{formatCurrency(computedBalance)}</span>
+                        </div>
+                      </div>
+
+                      {/* Add Extra Value */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Registrar Pagamento (R$)</label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="0,00"
+                            className="w-full pl-14 pr-5 py-5 bg-white dark:bg-slate-950 border-2 border-slate-600 dark:border-slate-800 rounded-2xl outline-none text-2xl font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-blue-500 transition-all shadow-inner"
+                            value={newAmount === 0 ? '' : newAmount}
+                            onChange={(e) => setNewAmount(e.target.value === '' ? 0 : Number(e.target.value))}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
 
                 <button
                   onClick={handleUpdatePayment}
-                  disabled={updating || newAmount <= 0}
-                  className="w-full py-5 bg-slate-900 dark:bg-blue-600 text-white rounded-3xl font-black text-lg hover:bg-emerald-600 dark:hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl dark:shadow-none disabled:opacity-50"
+                  disabled={updating || editDays.length === 0}
+                  className="w-full py-5 bg-slate-900 dark:bg-blue-600 text-white rounded-3xl font-black text-lg hover:bg-[#000000] dark:hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl dark:shadow-none disabled:opacity-50"
                 >
-                  {updating ? <Clock className="animate-spin" size={20} /> : 'Confirmar Pagamento'}
+                  {updating ? <Clock className="animate-spin" size={20} /> : 'Salvar Alterações'}
                 </button>
               </div>
             </motion.div>

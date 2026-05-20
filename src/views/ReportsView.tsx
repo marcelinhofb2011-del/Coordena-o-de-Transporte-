@@ -19,7 +19,7 @@ const ReportsView: React.FC = () => {
   useEffect(() => {
     if (!appUser) return;
 
-    let resQuery = query(collection(db, 'reservations'), orderBy('createdAt', 'desc'));
+    let resQuery = query(collection(db, 'reservations'));
     
     if (appUser.role === UserRole.COORDINATOR && appUser.congregationId) {
       resQuery = query(resQuery, where('congregationId', '==', appUser.congregationId));
@@ -28,7 +28,16 @@ const ReportsView: React.FC = () => {
     }
 
     const unsubRes = onSnapshot(resQuery, (snap) => {
-      setReservations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation)));
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation));
+      // Sort client-side by createdAt descending to avoid composite index requirements
+      data.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+      });
+      setReservations(data);
+    }, (error) => {
+      console.error("Error loading reporting reservations:", error);
     });
     const unsubB = onSnapshot(collection(db, 'buses'), snap => setBuses(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bus))));
     const unsubC = onSnapshot(collection(db, 'congregations'), snap => setCongregations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Congregation))));
