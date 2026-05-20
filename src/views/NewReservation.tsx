@@ -401,11 +401,11 @@ const NewReservation: React.FC = () => {
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest ml-1">Valor Recebido</label>
                     <div className="relative">
-                      <DollarSign className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-sans">R$</span>
                       <input
                         type="number"
                         step="0.01"
-                        className="w-full pl-5 pr-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400 placeholder:text-slate-200 dark:placeholder:text-slate-800"
+                        className="w-full pl-6 pr-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400 placeholder:text-slate-200 dark:placeholder:text-slate-800"
                         placeholder="0.00"
                         value={formData.receivedAmount === 0 ? '' : formData.receivedAmount}
                         onChange={e => {
@@ -420,11 +420,11 @@ const NewReservation: React.FC = () => {
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest ml-1">Crédito p/ Reserva</label>
                     <div className="relative">
-                      <DollarSign className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-sans">R$</span>
                       <input
                         type="number"
                         step="0.01"
-                        className="w-full pl-5 pr-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400"
+                        className="w-full pl-6 pr-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400"
                         value={formData.amountPaid === 0 ? '' : formData.amountPaid}
                         onChange={e => setFormData({ ...formData, amountPaid: e.target.value === '' ? 0 : Number(e.target.value) })}
                       />

@@ -472,7 +472,7 @@ const RegistriesView: React.FC = () => {
                       <div className="space-y-2">
                         <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Registrar Pagamento (R$)</label>
                         <div className="relative">
-                          <DollarSign className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-black font-sans text-xl">R$</span>
                           <input
                             type="number"
                             step="0.01"
@@ -520,7 +520,7 @@ const RegistriesView: React.FC = () => {
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Valor Recebido (Troco)</label>
                     <div className="relative">
-                      <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold font-sans text-sm">R$</span>
                       <input
                         type="number"
                         step="0.01"
@@ -559,15 +559,24 @@ const RegistriesView: React.FC = () => {
                       <div className="flex flex-col border-b border-[#dddddd] pb-2">
                         <span className="text-[10px] font-bold text-[#999999] uppercase tracking-wider">Comprador</span>
                         <span className="text-lg font-bold text-[#1a1a1a]">{showReceipt.passengers?.[0]?.name}</span>
+                        {showReceipt.passengers && showReceipt.passengers.length > 1 && (
+                          <span className="text-[10px] text-[#555555] mt-1 font-sans">
+                            Dependentes: {showReceipt.passengers.slice(1).map(p => p.name).join(', ')}
+                          </span>
+                        )}
                       </div>
                       <div className="grid grid-cols-2 gap-6">
                         <div className="flex flex-col border-b border-[#dddddd] pb-2">
-                          <span className="text-[10px] font-bold text-[#999999] uppercase tracking-wider">Dias Marcados</span>
-                          <span className="text-sm font-bold text-[#1a1a1a]">{showReceipt.days?.join(', ')}</span>
+                          <span className="text-[10px] font-bold text-[#999999] uppercase tracking-wider">Qtd. Passageiros</span>
+                          <span className="text-lg font-bold text-[#1a1a1a]">{showReceipt.passengers?.length || 1} p.</span>
                         </div>
                         <div className="flex flex-col border-b border-[#dddddd] pb-2 text-right">
                           <span className="text-[10px] font-bold text-[#999999] uppercase tracking-wider">Ônibus / Vaga</span>
                           <span className="text-sm font-bold text-[#1a1a1a]">{buses.find(b => b.id === showReceipt.busId)?.name}</span>
+                        </div>
+                        <div className="flex flex-col border-b border-[#dddddd] pb-2 col-span-2">
+                          <span className="text-[10px] font-bold text-[#999999] uppercase tracking-wider">Dias Marcados</span>
+                          <span className="text-sm font-bold text-[#1a1a1a]">{showReceipt.days?.join(', ')}</span>
                         </div>
                       </div>
                     </div>
