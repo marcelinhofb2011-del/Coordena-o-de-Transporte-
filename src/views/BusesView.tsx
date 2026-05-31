@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, addDoc, deleteDoc, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bus as BusIcon, Plus, Trash2, Edit2, Phone, User, Users, Info } from 'lucide-react';
+import { Bus as BusIcon, Plus, Trash2, Phone, User, Users, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { db } from '../services/firebase';
-import { Bus, UserRole } from '../types';
+import { Bus, UserRole, Congregation } from '../types';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
 const BusesView: React.FC = () => {
   const { appUser } = useAuth();
   const [buses, setBuses] = useState<Bus[]>([]);
-  const [showAdd, setShowAdd] = useState(false);
+  const [congregations, setCongregations] = useState<Congregation[]>([]);
+  const [isOpenForm, setIsOpenForm] = useState(true);
+  
   const [formData, setFormData] = useState({
     name: '',
     number: '',
@@ -26,12 +28,17 @@ const BusesView: React.FC = () => {
   useEffect(() => {
     if (!appUser) return;
     
-    let q = query(collection(db, 'buses'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'buses'));
     
-    // Non-admins only see buses for their congregation
-    // Note: In production, firestore rules will enforce this, but client filtering is good for UX
     const unsubscribe = onSnapshot(q, (snap) => {
       const allBuses = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bus));
+      // Sort in-memory client-side
+      allBuses.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+      });
+
       if (appUser.role === UserRole.ADMIN) {
         setBuses(allBuses);
       } else {
@@ -42,9 +49,22 @@ const BusesView: React.FC = () => {
     return unsubscribe;
   }, [appUser]);
 
+  useEffect(() => {
+    // Load congregations to map names and feed Admin selector
+    const unsubscribe = onSnapshot(query(collection(db, 'congregations')), (snap) => {
+      setCongregations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Congregation)));
+    });
+    return unsubscribe;
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appUser) return;
+
+    if (!formData.name || !formData.number || !formData.capacity) {
+      alert("Por favor, preencha os campos obrigatórios (Nome, Número e Capacidade).");
+      return;
+    }
 
     const busData = {
       ...formData,
@@ -52,127 +72,356 @@ const BusesView: React.FC = () => {
       createdAt: Timestamp.now()
     };
 
-    await addDoc(collection(db, 'buses'), busData);
-    setShowAdd(false);
-    setFormData({ name: '', number: '', company: '', driver: '', driverPhone: '', capacity: 50, plate: '', notes: '', congregationId: '' });
+    try {
+      await addDoc(collection(db, 'buses'), busData);
+      setFormData({ 
+        name: '', 
+        number: '', 
+        company: '', 
+        driver: '', 
+        driverPhone: '', 
+        capacity: 50, 
+        plate: '', 
+        notes: '', 
+        congregationId: '' 
+      });
+    } catch (err) {
+      console.error("Erro ao adicionar ônibus:", err);
+      alert("Ocorreu um erro ao registrar o ônibus.");
+    }
+  };
+
+  const getCongregationName = (id: string) => {
+    if (!id) return "Geral / Todas";
+    const found = congregations.find(c => c.id === id);
+    return found ? found.name : "Geral / Todas";
   };
 
   const canManage = appUser?.role === UserRole.ADMIN || appUser?.role === UserRole.COORDINATOR;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-16">
+    <div className="space-y-6 font-sans antialiased text-[#323130] dark:text-slate-100">
+      
+      {/* Microsoft Dynamics Style Header */}
+      <div className="border-b border-slate-200 dark:border-slate-800 pb-5 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter leading-tight mb-2">Frota</h1>
-          <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] opacity-60">Logística e Transporte</p>
+          <h1 className="text-2xl font-semibold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+            <BusIcon className="text-[#0078d4]" size={24} />
+            <span>Controle de Frota Integrado</span>
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Visualização de planilha e gerenciamento de capacidade de transporte para Caravanas.
+          </p>
         </div>
+        
         {canManage && (
-          <button onClick={() => setShowAdd(true)} className="bg-slate-900 text-white px-8 py-5 rounded-2xl shadow-2xl shadow-slate-200 hover:scale-105 transition-all flex items-center gap-3 font-black text-xs uppercase tracking-widest self-start md:self-auto">
-            <Plus size={18} />
-            <span>Novo Ônibus</span>
+          <button 
+            type="button"
+            onClick={() => setIsOpenForm(!isOpenForm)}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors shadow-sm"
+          >
+            {isOpenForm ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            <span>{isOpenForm ? "Recolher Painel de Cadastro" : "Inserir Novo Ônibus"}</span>
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-8">
-        {buses.map(bus => (
-          <motion.div layout key={bus.id} className="group relative flex flex-col pt-6 border-t border-slate-100 hover:border-indigo-200 transition-all duration-300">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 shadow-sm transition-all duration-500 group-hover:text-indigo-600">
-                <BusIcon size={18} />
-              </div>
-              {canManage && (
-                <button 
-                  onClick={async () => await deleteDoc(doc(db, 'buses', bus.id))}
-                  className="p-1.5 text-slate-200 hover:text-rose-500 transition-colors"
-                  title="Excluir Unidade"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </div>
-            
-            <div className="mb-4">
-              <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-1">{bus.name}</h3>
-              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-70">
-                {bus.number ? `${bus.number} • ` : ''}{bus.company}
-              </p>
-              {bus.plate && (
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mt-1 bg-slate-100 w-fit px-2 py-0.5 rounded">
-                  Placa: {bus.plate}
-                </p>
-              )}
-            </div>
-            
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 py-2 border-b border-slate-50">
-                <User size={12} className="text-slate-300" />
-                <div className="text-xs">
-                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Motorista</p>
-                  <p className="font-bold text-slate-700 tracking-tight text-[13px]">{bus.driver}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 py-2">
-                <Users size={12} className="text-slate-300" />
-                <div className="text-xs">
-                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Capacidade</p>
-                  <p className="font-bold text-slate-700 tracking-tight text-[13px]">{bus.capacity} Assentos</p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
+      {/* Integrated Tabular Registry Form (Microsoft Forms / Excel Quick Add Style) */}
       <AnimatePresence>
-        {showAdd && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAdd(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl overflow-y-auto max-h-[90vh]">
-              <div className="mb-10">
-                <h2 className="text-4xl font-black text-slate-950 tracking-tighter leading-none mb-2">Novo Ônibus</h2>
-                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Expansão da Frota Logística</p>
+        {canManage && isOpenForm && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md shadow-sm mb-6">
+              <div className="bg-[#f3f2f1] dark:bg-slate-800/60 px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-xs font-bold text-[#323130] dark:text-slate-300 uppercase tracking-wider font-mono">
+                  Linha de Entrada de Dados (Novo Ônibus)
+                </span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">Preencha os campos abaixo de maneira integrada</span>
               </div>
               
-              <form onSubmit={handleSubmit} className="space-y-8">
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-3 col-span-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Identificação / Nome</label>
-                    <input required className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Número</label>
-                    <input required className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.number} onChange={e => setFormData({ ...formData, number: e.target.value })} />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Capacidade</label>
-                    <input required type="number" className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.capacity === 0 ? '' : formData.capacity} onChange={e => setFormData({ ...formData, capacity: e.target.value === '' ? 0 : Number(e.target.value) })} />
-                  </div>
-                  <div className="space-y-3 col-span-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Empresa</label>
-                    <input className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.company} onChange={e => setFormData({ ...formData, company: e.target.value })} />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Placa do Veículo</label>
-                    <input className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" placeholder="ABCD-1234" value={formData.plate} onChange={e => setFormData({ ...formData, plate: e.target.value })} />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Motorista</label>
-                    <input className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.driver} onChange={e => setFormData({ ...formData, driver: e.target.value })} />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Contato (Fone)</label>
-                    <input className="w-full px-6 py-5 bg-white border-2 border-slate-600 rounded-2xl outline-none font-black text-slate-950 focus:ring-2 focus:ring-indigo-600 transition-all" value={formData.driverPhone} onChange={e => setFormData({ ...formData, driverPhone: e.target.value })} />
-                  </div>
+              <form onSubmit={handleSubmit} className="p-4 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 items-end">
+                {/* Identification */}
+                <div className="space-y-1 md:col-span-2 lg:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Identificação / Nome *</label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="Ex: Ônibus 1"
+                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-sm focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] outline-none text-slate-900 dark:text-white transition-all font-medium placeholder-slate-400"
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  />
                 </div>
-                <div className="pt-4">
-                  <button type="submit" className="w-full bg-slate-950 text-white py-6 rounded-3xl font-black text-xl hover:bg-indigo-600 transition-all shadow-2xl shadow-slate-200 active:scale-[0.98]">Criar Unidade de Frota</button>
+
+                {/* Number */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Número da Ficha *</label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="Ex: 104"
+                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-sm focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] outline-none text-slate-900 dark:text-white transition-all font-medium placeholder-slate-400 font-mono"
+                    value={formData.number}
+                    onChange={e => setFormData({ ...formData, number: e.target.value })}
+                  />
+                </div>
+
+                {/* Capacity */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Capacidade *</label>
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    placeholder="Assentos"
+                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-sm focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] outline-none text-slate-900 dark:text-white transition-all font-medium"
+                    value={formData.capacity === 0 ? '' : formData.capacity}
+                    onChange={e => setFormData({ ...formData, capacity: e.target.value === '' ? 0 : Number(e.target.value) })}
+                  />
+                </div>
+
+                {/* Company */}
+                <div className="space-y-1 lg:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Empresa de Transporte</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Viação União"
+                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-sm focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] outline-none text-slate-900 dark:text-white transition-all font-medium placeholder-slate-400"
+                    value={formData.company}
+                    onChange={e => setFormData({ ...formData, company: e.target.value })}
+                  />
+                </div>
+
+                {/* Plate */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Placa</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: ABC-1234"
+                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-sm focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] outline-none text-slate-900 dark:text-white transition-all font-medium uppercase font-mono placeholder-slate-400"
+                    value={formData.plate}
+                    onChange={e => setFormData({ ...formData, plate: e.target.value })}
+                  />
+                </div>
+
+                {/* Motorista */}
+                <div className="space-y-1 col-span-1">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Motorista</label>
+                  <input
+                    type="text"
+                    placeholder="Nome"
+                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-sm focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] outline-none text-slate-900 dark:text-white transition-all font-medium placeholder-slate-400"
+                    value={formData.driver}
+                    onChange={e => setFormData({ ...formData, driver: e.target.value })}
+                  />
+                </div>
+
+                {/* Driver Phone */}
+                <div className="space-y-1 col-span-1">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Telefone Contato</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: (11) 99999-0000"
+                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-sm focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] outline-none text-slate-900 dark:text-white transition-all font-medium placeholder-slate-400"
+                    value={formData.driverPhone}
+                    onChange={e => setFormData({ ...formData, driverPhone: e.target.value })}
+                  />
+                </div>
+
+                {/* Congregation Dropdown for Admins */}
+                {appUser.role === UserRole.ADMIN ? (
+                  <div className="space-y-1 lg:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Congregação Associada</label>
+                    <select
+                      className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-sm focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] outline-none text-slate-900 dark:text-white transition-all"
+                      value={formData.congregationId}
+                      onChange={e => setFormData({ ...formData, congregationId: e.target.value })}
+                    >
+                      <option value="">Todas / Sem Vínculo Próprio</option>
+                      {congregations.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-1 lg:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Congregação</label>
+                    <div className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-sm text-slate-400 font-medium truncate">
+                      {getCongregationName(appUser.congregationId || '')}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes/Obs */}
+                <div className="space-y-1 lg:col-span-4">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Observações adicionais</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Cinto 3 pontos, frigobar, ar condicionado..."
+                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-sm focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] outline-none text-slate-900 dark:text-white transition-all font-medium placeholder-slate-400"
+                    value={formData.notes}
+                    onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                  />
+                </div>
+
+                {/* Submit Action Button */}
+                <div className="lg:col-span-2">
+                  <button
+                    type="submit"
+                    className="w-full bg-[#0078d4] hover:bg-[#106ebe] text-white py-1.5 px-4 font-bold text-xs uppercase tracking-wider rounded-sm shadow-sm transition-all flex items-center justify-center gap-2 hover:shadow"
+                  >
+                    <Plus size={14} />
+                    <span>Salvar Linha</span>
+                  </button>
                 </div>
               </form>
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Main Spreadsheet/Table Area */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden shadow-sm">
+        <div className="bg-[#f3f2f1] dark:bg-slate-800/40 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-[#323130] dark:text-white uppercase tracking-wider font-sans">
+              Planilha de Dados de Frota
+            </span>
+            <span className="bg-slate-200 dark:bg-slate-700 text-[#323130] dark:text-slate-200 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold">
+              {buses.length} {buses.length === 1 ? 'Ônibus' : 'Ônibus'}
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 font-sans">
+            <Info size={12} className="text-[#0078d4] shrink-0" />
+            Arraste para os lados para visualizar em telas menores.
+          </span>
+        </div>
+
+        {buses.length === 0 ? (
+          <div className="py-12 text-center text-slate-400 dark:text-slate-500">
+            <BusIcon className="mx-auto mb-3 opacity-40 text-slate-400" size={40} />
+            <p className="font-bold text-sm">Nenhum ônibus cadastrado na frota corporativa.</p>
+            <p className="text-xs mt-1">Insira uma nova linha de ônibus usando o formulário de cadastro.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[950px] border-collapse text-left text-xs text-slate-700 dark:text-slate-300">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/30 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-[#323130] dark:text-slate-300 font-sans">
+                  <th className="px-4 py-2.5 font-mono border-r border-slate-100 dark:border-slate-800/50 w-20">Ficha</th>
+                  <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50">Identificação / Modelo</th>
+                  <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50 w-32">Empresa</th>
+                  <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50 w-44">Motorista</th>
+                  <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50 w-36">Telefone</th>
+                  <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50 w-32">Locado Para</th>
+                  <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50 w-24">Placa</th>
+                  <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50 w-28 text-center">Assentos</th>
+                  {canManage && <th className="px-4 py-2.5 w-16 text-center">Ações</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {buses.map((bus) => (
+                  <tr 
+                    key={bus.id} 
+                    className="border-b border-slate-150 dark:border-slate-800/70 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                  >
+                    {/* Ficha Number */}
+                    <td className="px-4 py-3 font-mono font-bold text-[#0078d4] dark:text-blue-400 bg-slate-50/30 dark:bg-slate-800/10 border-r border-slate-100 dark:border-slate-800/50">
+                      Nº {bus.number || "—"}
+                    </td>
+
+                    {/* Identification / Name */}
+                    <td className="px-4 py-3 font-bold text-slate-800 dark:text-white border-r border-slate-100 dark:border-slate-800/50">
+                      <div className="flex flex-col gap-1">
+                        <span>{bus.name}</span>
+                        {bus.notes && (
+                          <span className="text-[9px] bg-sky-50 dark:bg-sky-950/40 border border-sky-150 dark:border-sky-900/40 text-[#0078d4] dark:text-sky-300 font-normal px-1 py-0.5 rounded-sm w-fit leading-tight">
+                            Obs: {bus.notes}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Company */}
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-medium border-r border-slate-100 dark:border-slate-800/50">
+                      {bus.company || <span className="italic opacity-40">Não descrita</span>}
+                    </td>
+
+                    {/* Motorista/Driver */}
+                    <td className="px-4 py-3 text-[#323130] dark:text-slate-200 border-r border-slate-100 dark:border-slate-800/50">
+                      <div className="flex items-center gap-1.5">
+                        <User size={13} className="text-slate-400" />
+                        <span className="font-semibold">{bus.driver || <span className="italic font-normal opacity-40">Sem motorista</span>}</span>
+                      </div>
+                    </td>
+
+                    {/* Fone Contato */}
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800/50">
+                      {bus.driverPhone ? (
+                        <a href={`tel:${bus.driverPhone}`} className="flex items-center gap-1 text-[#0078d4] hover:underline font-medium">
+                          <Phone size={11} className="shrink-0" />
+                          <span>{bus.driverPhone}</span>
+                        </a>
+                      ) : (
+                        <span className="italic opacity-40">Sem telefone</span>
+                      )}
+                    </td>
+
+                    {/* Let/Congregation */}
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800/50 font-medium font-sans">
+                      <div className="truncate max-w-[130px]">
+                        {getCongregationName(bus.congregationId)}
+                      </div>
+                    </td>
+
+                    {/* Vehicle Plate */}
+                    <td className="px-4 py-3 border-r border-slate-100 dark:border-slate-800/50">
+                      {bus.plate ? (
+                        <span className="inline-block px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 font-mono font-bold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded uppercase tracking-wider text-[10px]">
+                          {bus.plate}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 dark:text-slate-700 font-mono italic">S/P</span>
+                      )}
+                    </td>
+
+                    {/* Capacity */}
+                    <td className="px-4 py-3 text-center font-bold text-slate-800 dark:text-white bg-slate-50/10 dark:bg-slate-800/5 border-r border-slate-100 dark:border-slate-800/50">
+                      <div className="flex items-center justify-center gap-1.5 font-sans">
+                        <Users size={12} className="text-slate-400" />
+                        <span>{bus.capacity}</span>
+                        <span className="text-[10px] font-normal text-slate-400">poltronas</span>
+                      </div>
+                    </td>
+
+                    {/* Action buttons list */}
+                    {canManage && (
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (window.confirm(`Tem certeza de que deseja remover o ônibus "${bus.name}" (Ficha Nº ${bus.number}) da planilha do sistema? Desassociará as informações de controle.`)) {
+                              await deleteDoc(doc(db, 'buses', bus.id));
+                            }
+                          }}
+                          className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 dark:hover:bg-red-950/30 rounded-sm transition-colors"
+                          title="Excluir Linha"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

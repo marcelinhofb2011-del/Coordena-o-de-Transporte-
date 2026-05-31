@@ -12,6 +12,7 @@ export enum PaymentStatus {
 
 export interface AppSettings {
   ticketPrice: number;
+  dailyPrices?: { [day: string]: number };
 }
 
 export interface Passenger {
@@ -49,6 +50,7 @@ export interface Reservation {
   paymentMethod: string;
   paymentStatus: PaymentStatus;
   unitValue: number;
+  dailyPrices?: { [day: string]: number };
   totalValue: number;
   amountPaid: number;
   receivedAmount?: number;

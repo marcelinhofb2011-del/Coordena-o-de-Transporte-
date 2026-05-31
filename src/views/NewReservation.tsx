@@ -32,6 +32,11 @@ const NewReservation: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [globalPrice, setGlobalPrice] = useState(0);
+  const [dailyPrices, setDailyPrices] = useState<{ [day: string]: number }>({
+    'Sexta': 0,
+    'Sábado': 0,
+    'Domingo': 0
+  });
 
   // Form State
   const [passengers, setPassengers] = useState<Passenger[]>([{ name: '', document: '' }]);
@@ -55,7 +60,13 @@ const NewReservation: React.FC = () => {
     const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setGlobalPrice(data.ticketPrice || 0);
+        const base = data.ticketPrice || 0;
+        setGlobalPrice(base);
+        setDailyPrices(data.dailyPrices || {
+          'Sexta': base || 42,
+          'Sábado': base || 36,
+          'Domingo': base || 36
+        });
       } else {
         console.warn('Settings global document not found');
       }
@@ -84,7 +95,10 @@ const NewReservation: React.FC = () => {
     };
   }, [appUser]);
 
-  const totalValue = passengers.length * selectedDays.length * globalPrice;
+  const totalValue = passengers.length * selectedDays.reduce((sum, day) => {
+    const price = dailyPrices[day] !== undefined ? dailyPrices[day] : globalPrice;
+    return sum + price;
+  }, 0);
   const balance = totalValue - formData.amountPaid;
   const change = Math.max(0, formData.receivedAmount - totalValue);
   const isPaid = formData.amountPaid >= totalValue;
@@ -183,6 +197,7 @@ const NewReservation: React.FC = () => {
         congregationId: formData.congregationId,
         paymentMethod: formData.paymentMethod,
         unitValue: globalPrice,
+        dailyPrices,
         totalValue,
         amountPaid: formData.amountPaid,
         receivedAmount: formData.receivedAmount || formData.amountPaid,
@@ -242,9 +257,15 @@ const NewReservation: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          <div>
-            <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest leading-none mb-1 text-right">Passagem Unitária</p>
-            <p className="text-2xl font-black text-slate-950 dark:text-white tracking-tighter">{formatCurrency(globalPrice)}</p>
+          <div className="text-right">
+            <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest leading-none mb-1 text-right">Preços por Dia de Congresso</p>
+            <div className="flex items-center gap-3 text-xs font-bold text-slate-800 dark:text-slate-300">
+              <span className="flex items-center gap-1">🗓️ Sexta: <span className="font-mono text-slate-950 dark:text-white">{formatCurrency(dailyPrices['Sexta'])}</span></span>
+              <span className="h-3 w-px bg-slate-200 dark:bg-slate-700" />
+              <span className="flex items-center gap-1">📅 Sáb: <span className="font-mono text-slate-950 dark:text-white">{formatCurrency(dailyPrices['Sábado'])}</span></span>
+              <span className="h-3 w-px bg-slate-200 dark:bg-slate-700" />
+              <span className="flex items-center gap-1">☀️ Dom: <span className="font-mono text-slate-950 dark:text-white">{formatCurrency(dailyPrices['Domingo'])}</span></span>
+            </div>
           </div>
         </div>
       </div>
@@ -326,6 +347,9 @@ const NewReservation: React.FC = () => {
                       {day === 'Domingo' && '☀️'}
                     </span>
                     <span className="uppercase text-[9px] tracking-widest">{day}</span>
+                    <span className="text-[10px] font-mono opacity-80">
+                      {formatCurrency(dailyPrices[day] !== undefined ? dailyPrices[day] : globalPrice)}
+                    </span>
                   </button>
                 ))}
               </div>

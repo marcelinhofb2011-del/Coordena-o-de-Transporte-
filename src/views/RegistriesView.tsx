@@ -52,6 +52,35 @@ const RegistriesView: React.FC = () => {
   const [receivedAmount, setReceivedAmount] = useState<number>(0);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
+  // Global Prices State for Sync/Recalculation
+  const [globalPrice, setGlobalPrice] = useState(0);
+  const [dailyPrices, setDailyPrices] = useState<{ [day: string]: number }>({
+    'Sexta': 42,
+    'Sábado': 36,
+    'Domingo': 36
+  });
+  const [isRecalculatingAll, setIsRecalculatingAll] = useState(false);
+
+  useEffect(() => {
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const base = data.ticketPrice || 0;
+        setGlobalPrice(base);
+        if (data.dailyPrices) {
+          setDailyPrices(data.dailyPrices);
+        } else {
+          setDailyPrices({
+            'Sexta': base || 42,
+            'Sábado': base || 36,
+            'Domingo': base || 36
+          });
+        }
+      }
+    });
+    return unsubSettings;
+  }, []);
+
   useEffect(() => {
     if (!appUser) return;
     let resQuery = query(collection(db, 'reservations'));
@@ -115,6 +144,68 @@ const RegistriesView: React.FC = () => {
     setDeleteId(null);
   };
 
+  const getExpectedTotalValue = (res: Reservation) => {
+    const pCount = res.passengers?.length || 1;
+    const days = res.days || [];
+    return pCount * days.reduce((sum, day) => {
+      const price = dailyPrices[day] !== undefined ? dailyPrices[day] : globalPrice;
+      return sum + price;
+    }, 0);
+  };
+
+  const mismatchedReservations = reservations.filter(res => {
+    const expected = getExpectedTotalValue(res);
+    return res.totalValue !== expected;
+  });
+
+  const handleRecalculateAll = async () => {
+    if (isRecalculatingAll) return;
+    if (!window.confirm(`Deseja atualizar automaticamente as ${mismatchedReservations.length} reservas desatualizadas para os novos valores de passagem do congresso? Isso recalculará o Valor Total, novo Saldo Restante e redefinirá o Status de Pagamento (Pago, Parcial ou Pendente) com base no que já foi pago.`)) {
+      return;
+    }
+    
+    setIsRecalculatingAll(true);
+    try {
+      let count = 0;
+      for (const res of mismatchedReservations) {
+        const expectedTotal = getExpectedTotalValue(res);
+        const newBalance = Math.max(0, expectedTotal - res.amountPaid);
+        const isPaid = res.amountPaid >= expectedTotal;
+        const isPartial = res.amountPaid > 0 && res.amountPaid < expectedTotal;
+        const status = isPaid ? PaymentStatus.PAGO : (isPartial ? PaymentStatus.PARCIAL : PaymentStatus.PENDENTE);
+        
+        await updateDoc(doc(db, 'reservations', res.id), {
+          totalValue: expectedTotal,
+          balance: newBalance,
+          paymentStatus: status,
+          dailyPrices: dailyPrices,
+          unitValue: globalPrice
+        });
+        
+        await createAuditLog(
+          LogAction.PAYMENT_UPDATE,
+          `Recalculado automático por alteração tarifária global. Novo valor total: R$ ${expectedTotal}. Pago: R$ ${res.amountPaid}. Novo saldo: R$ ${newBalance}`,
+          res.id
+        );
+        count++;
+      }
+      
+      await createNotification({
+        title: 'Recálculo em Massa Concluído',
+        message: `${count} reservas foram sincronizadas com os novos valores tarifários com sucesso.`,
+        type: NotificationType.RESERVATION_NEW,
+        targetRoles: [UserRole.ADMIN, UserRole.COORDINATOR],
+        link: 'reservations'
+      });
+      alert(`${count} reservas foram recalculadas com sucesso para os novos valores!`);
+    } catch (error) {
+      console.error('Error during batch recalculation:', error);
+      alert('Erro ao tentar atualizar as reservas. Verifique o console.');
+    } finally {
+      setIsRecalculatingAll(false);
+    }
+  };
+
   const handleUpdatePayment = async () => {
     if (!editRes) return;
     if (editDays.length === 0) {
@@ -123,9 +214,11 @@ const RegistriesView: React.FC = () => {
     }
     setUpdating(true);
     try {
-      const modalUnitValue = editRes.unitValue || 60;
       const modalPassengersCount = editRes.passengers?.length || 1;
-      const computedTotalValue = modalPassengersCount * editDays.length * modalUnitValue;
+      const computedTotalValue = modalPassengersCount * editDays.reduce((sum, day) => {
+        const price = dailyPrices[day] !== undefined ? dailyPrices[day] : globalPrice;
+        return sum + price;
+      }, 0);
       const updatedAmount = editRes.amountPaid + newAmount;
       const isPaid = updatedAmount >= computedTotalValue;
       const isPartial = updatedAmount > 0 && updatedAmount < computedTotalValue;
@@ -137,7 +230,9 @@ const RegistriesView: React.FC = () => {
         totalValue: computedTotalValue,
         amountPaid: updatedAmount,
         balance: newBalance,
-        paymentStatus: status
+        paymentStatus: status,
+        dailyPrices,
+        unitValue: globalPrice
       });
       
       await createAuditLog(
@@ -239,6 +334,38 @@ const RegistriesView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {(appUser?.role === UserRole.ADMIN || appUser?.role === UserRole.COORDINATOR) && mismatchedReservations.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" size={20} />
+            <div>
+              <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200">Preços Desatualizados nas Reservas</h4>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 font-medium leading-relaxed">
+                Detectamos <strong>{mismatchedReservations.length}</strong> {mismatchedReservations.length === 1 ? 'reserva antiga que não está' : 'reservas antigas que não estão'} calculadas com os novos preços de passagens (Sexta: {formatCurrency(dailyPrices['Sexta'])}, Sábado: {formatCurrency(dailyPrices['Sábado'])}, Domingo: {formatCurrency(dailyPrices['Domingo'])}).
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleRecalculateAll}
+            disabled={isRecalculatingAll}
+            className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 font-sans cursor-pointer"
+          >
+            {isRecalculatingAll ? (
+              <>
+                <Clock className="animate-spin" size={14} />
+                <span>Atualizando...</span>
+              </>
+            ) : (
+              <span>Corrigir / Recalcular Todas</span>
+            )}
+          </button>
+        </motion.div>
+      )}
 
       <AnimatePresence>
         {showFilters && (
@@ -440,9 +567,11 @@ const RegistriesView: React.FC = () => {
 
                 {/* Calculation Summary */}
                 {(() => {
-                  const modalUnitValue = editRes.unitValue || 60;
                   const modalPassengersCount = editRes.passengers?.length || 1;
-                  const computedTotalValue = modalPassengersCount * editDays.length * modalUnitValue;
+                  const computedTotalValue = modalPassengersCount * editDays.reduce((sum, day) => {
+                    const price = dailyPrices[day] !== undefined ? dailyPrices[day] : globalPrice;
+                    return sum + price;
+                  }, 0);
                   const computedBalance = Math.max(0, computedTotalValue - (editRes.amountPaid + newAmount));
                   return (
                     <>
