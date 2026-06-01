@@ -21,10 +21,12 @@ import {
   DollarSign,
   Printer,
   Share2,
-  ChevronDown
+  ChevronDown,
+  Plus,
+  UserPlus
 } from 'lucide-react';
 import { db, createAuditLog, createNotification } from '../services/firebase';
-import { Reservation, PaymentStatus, Bus, Congregation, UserRole, LogAction, NotificationType } from '../types';
+import { Reservation, PaymentStatus, Bus, Congregation, UserRole, LogAction, NotificationType, Passenger } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { cn, formatCurrency } from '../lib/utils';
 
@@ -47,6 +49,27 @@ const RegistriesView: React.FC = () => {
   const [newAmount, setNewAmount] = useState<number>(0);
   const [updating, setUpdating] = useState(false);
   const [editDays, setEditDays] = useState<string[]>([]);
+  const [editPassengers, setEditPassengers] = useState<Passenger[]>([{ name: '', document: '' }]);
+  const [editBusId, setEditBusId] = useState<string>('');
+  const [editCongregationId, setEditCongregationId] = useState<string>('');
+  const [editNotes, setEditNotes] = useState<string>('');
+
+  const handleEditPassengerChange = (index: number, field: keyof Passenger, value: string) => {
+    const newPassengers = [...editPassengers];
+    newPassengers[index] = { ...newPassengers[index], [field]: value };
+    setEditPassengers(newPassengers);
+  };
+
+  const handleAddEditPassenger = () => {
+    setEditPassengers([...editPassengers, { name: '', document: '' }]);
+  };
+
+  const handleRemoveEditPassenger = (index: number) => {
+    if (editPassengers.length === 1) return;
+    const newPassengers = [...editPassengers];
+    newPassengers.splice(index, 1);
+    setEditPassengers(newPassengers);
+  };
 
   // Receipt State
   const [receivedAmount, setReceivedAmount] = useState<number>(0);
@@ -212,9 +235,43 @@ const RegistriesView: React.FC = () => {
       alert('Selecione pelo menos um dia de viagem.');
       return;
     }
+    if (!editBusId) {
+      alert('Selecione um ônibus.');
+      return;
+    }
+    if (!editCongregationId) {
+      alert('Selecione uma congregação.');
+      return;
+    }
+    if (editPassengers.some(p => !p.name)) {
+      alert('Preencha o nome de todos os passageiros.');
+      return;
+    }
+
     setUpdating(true);
     try {
-      const modalPassengersCount = editRes.passengers?.length || 1;
+      const targetBus = buses.find(b => b.id === editBusId);
+      if (!targetBus) {
+        alert('Ônibus não encontrado.');
+        setUpdating(false);
+        return;
+      }
+
+      // Calculate occupied seats for this bus, excluding current reservation's seats since they are being updated
+      let occupiedSeats = 0;
+      reservations.forEach(r => {
+        if (r.busId === editBusId && r.id !== editRes.id) {
+          occupiedSeats += (r.passengers?.length || 1);
+        }
+      });
+
+      if (occupiedSeats + editPassengers.length > targetBus.capacity) {
+        alert(`Capacidade do ônibus ${targetBus.name} excedida. Vagas restantes: ${targetBus.capacity - occupiedSeats}`);
+        setUpdating(false);
+        return;
+      }
+
+      const modalPassengersCount = editPassengers.length || 1;
       const computedTotalValue = modalPassengersCount * editDays.reduce((sum, day) => {
         const price = dailyPrices[day] !== undefined ? dailyPrices[day] : globalPrice;
         return sum + price;
@@ -226,6 +283,10 @@ const RegistriesView: React.FC = () => {
       const newBalance = Math.max(0, computedTotalValue - updatedAmount);
 
       await updateDoc(doc(db, 'reservations', editRes.id), {
+        passengers: editPassengers,
+        busId: editBusId,
+        congregationId: editCongregationId,
+        notes: editNotes,
         days: editDays,
         totalValue: computedTotalValue,
         amountPaid: updatedAmount,
@@ -237,23 +298,27 @@ const RegistriesView: React.FC = () => {
       
       await createAuditLog(
         LogAction.PAYMENT_UPDATE,
-        `Reserva/Pagamento atualizado. Dias: ${editDays.join(', ')}. Valor Total: R$ ${computedTotalValue}. Pago: R$ ${updatedAmount}. Novo saldo: R$ ${newBalance}`,
+        `Reserva atualizada. Passageiros: ${editPassengers.map(p => p.name).join(', ')}. Dias: ${editDays.join(', ')}. Ônibus: ${targetBus.name}. Valor Total: R$ ${computedTotalValue}. Pago: R$ ${updatedAmount}. Novo saldo: R$ ${newBalance}`,
         editRes.id
       );
 
       // Notify about payment update
       await createNotification({
-        title: 'Reserva/Pagamento Atualizado',
-        message: `Reserva de ${editRes.passengers?.[0]?.name} atualizada. Dias: ${editDays.join(', ')}. Total: ${formatCurrency(computedTotalValue)}. Pago: ${formatCurrency(updatedAmount)}. Saldo: ${formatCurrency(newBalance)}`,
+        title: 'Reserva Atualizada',
+        message: `Reserva de ${editPassengers[0]?.name || ''} modificada. Dias: ${editDays.join(', ')}. Total: ${formatCurrency(computedTotalValue)}. Pago: ${formatCurrency(updatedAmount)}.`,
         type: NotificationType.RESERVATION_NEW,
         targetRoles: [UserRole.ADMIN, UserRole.COORDINATOR],
-        congregationId: editRes.congregationId,
+        congregationId: editCongregationId,
         link: 'reservations'
       });
 
       setEditRes(null);
       setNewAmount(0);
       setEditDays([]);
+      setEditPassengers([{ name: '', document: '' }]);
+      setEditBusId('');
+      setEditCongregationId('');
+      setEditNotes('');
     } catch (error) {
       console.error('Error updating reservation & payment:', error);
     } finally {
@@ -482,7 +547,21 @@ const RegistriesView: React.FC = () => {
                   <td className="px-6 py-5">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => { setShowReceipt(res); setReceivedAmount(res.receivedAmount || res.totalValue); }} className="p-2 text-[#707070] dark:text-slate-400 hover:text-[#0067b8] dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-800 rounded-sm transition-all"><Printer size={16} /></button>
-                      <button onClick={() => { setEditRes(res); setNewAmount(0); setEditDays(res.days || []); }} className="p-2 text-[#707070] dark:text-slate-400 hover:text-[#0067b8] dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-800 rounded-sm transition-all" title="Editar dias e pagamento"><CreditCard size={16} /></button>
+                      <button 
+                        onClick={() => { 
+                          setEditRes(res); 
+                          setNewAmount(0); 
+                          setEditDays(res.days || []); 
+                          setEditPassengers(res.passengers || [{ name: '', document: '' }]);
+                          setEditBusId(res.busId || '');
+                          setEditCongregationId(res.congregationId || '');
+                          setEditNotes(res.notes || '');
+                        }} 
+                        className="p-2 text-[#707070] dark:text-slate-400 hover:text-[#0067b8] dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-800 rounded-sm transition-all" 
+                        title="Editar Registro"
+                      >
+                        <Edit2 size={16} />
+                      </button>
                       <button onClick={() => setDeleteId(res.id)} className="p-2 text-[#707070] dark:text-slate-400 hover:text-[#e81123] dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-sm transition-all"><Trash2 size={16} /></button>
                     </div>
                   </td>
@@ -522,12 +601,12 @@ const RegistriesView: React.FC = () => {
         {editRes && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditRes(null)} className="absolute inset-0 bg-slate-900/60 dark:bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl border border-black/5 dark:border-white/5 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl border border-black/5 dark:border-white/5 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white">Editar Reserva</h3>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white">Editar Registro</h3>
                   <p className="text-xs font-bold text-[#707070] dark:text-slate-400 mt-1 uppercase tracking-tight">
-                    {editRes.passengers?.[0]?.name} {editRes.passengers && editRes.passengers.length > 1 && `(+${editRes.passengers.length - 1} dependentes)`}
+                    Administração da Reserva e Identificação
                   </p>
                 </div>
                 <button onClick={() => setEditRes(null)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-400 dark:text-slate-500 transition-colors"><X size={24} /></button>
@@ -565,9 +644,105 @@ const RegistriesView: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Edit Passengers and Dependants */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Passageiros / Dependentes</label>
+                    <button
+                      type="button"
+                      onClick={handleAddEditPassenger}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors"
+                    >
+                      <Plus size={12} />
+                      Adicionar
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {editPassengers.map((passenger, index) => (
+                      <div key={index} className="flex gap-2 items-center bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-150 dark:border-slate-800/50">
+                        <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            required
+                            type="text"
+                            placeholder="Nome Completo"
+                            className="w-full px-2 py-1 bg-transparent border-b border-slate-300 dark:border-slate-800 outline-none text-xs font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-500 transition-all font-sans"
+                            value={passenger.name}
+                            onChange={(e) => handleEditPassengerChange(index, 'name', e.target.value)}
+                          />
+                          <input
+                            required
+                            type="text"
+                            placeholder="Documento (RG/CPF)"
+                            className="w-full px-2 py-1 bg-transparent border-b border-slate-300 dark:border-slate-800 outline-none text-xs font-medium text-slate-600 dark:text-slate-400 focus:border-indigo-500 dark:focus:border-blue-500 transition-all font-sans"
+                            value={passenger.document || ''}
+                            onChange={(e) => handleEditPassengerChange(index, 'document', e.target.value)}
+                          />
+                        </div>
+                        {editPassengers.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveEditPassenger(index)}
+                            className="p-2 text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg transition-colors"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Edit Bus and Congregation Selection */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Ônibus Selecionado</label>
+                    <select
+                      className="w-full p-3 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:border-indigo-500 dark:focus:border-blue-500 dark:text-white font-semibold transition-colors"
+                      value={editBusId}
+                      onChange={(e) => setEditBusId(e.target.value)}
+                    >
+                      <option value="">Selecione um Ônibus</option>
+                      {buses.map(b => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Congregação</label>
+                    {appUser?.role === UserRole.ADMIN ? (
+                      <select
+                        className="w-full p-3 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:border-indigo-500 dark:focus:border-blue-500 dark:text-white font-semibold transition-colors"
+                        value={editCongregationId}
+                        onChange={(e) => setEditCongregationId(e.target.value)}
+                      >
+                        <option value="">Selecione uma Congregação</option>
+                        {congregations.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="p-3 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400">
+                        {congregations.find(c => c.id === editCongregationId)?.name || '---'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Edit Notes/Observações */}
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Observações</label>
+                  <textarea
+                    placeholder="Instruções ou informações adicionais..."
+                    className="w-full p-3 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:border-indigo-500 dark:focus:border-blue-500 dark:text-white font-medium transition-colors resize-none h-20"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                  />
+                </div>
+
                 {/* Calculation Summary */}
                 {(() => {
-                  const modalPassengersCount = editRes.passengers?.length || 1;
+                  const modalPassengersCount = editPassengers.length || 1;
                   const computedTotalValue = modalPassengersCount * editDays.reduce((sum, day) => {
                     const price = dailyPrices[day] !== undefined ? dailyPrices[day] : globalPrice;
                     return sum + price;
@@ -582,13 +757,13 @@ const RegistriesView: React.FC = () => {
                           <span className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(computedTotalValue)}</span>
                         </div>
                         <div className="flex justify-between items-end mb-2">
-                          <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Já Pago</span>
-                          <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(editRes.amountPaid)}</span>
+                          <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Já Pago</span>
+                          <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{formatCurrency(editRes.amountPaid)}</span>
                         </div>
                         {newAmount > 0 && (
                           <div className="flex justify-between items-end mb-2">
-                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Novo Pagamento</span>
-                            <span className="text-lg font-bold text-blue-600 dark:text-blue-400">+{formatCurrency(newAmount)}</span>
+                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Novo Pagamento</span>
+                            <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">+{formatCurrency(newAmount)}</span>
                           </div>
                         )}
                         <div className="flex justify-between items-end pt-3 border-t border-slate-200 dark:border-slate-700">
@@ -599,7 +774,7 @@ const RegistriesView: React.FC = () => {
 
                       {/* Add Extra Value */}
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Registrar Pagamento (R$)</label>
+                        <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Registrar Pagamento Adicional (R$)</label>
                         <div className="relative">
                           <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-black font-sans text-xl">R$</span>
                           <input
