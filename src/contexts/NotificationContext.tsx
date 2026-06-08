@@ -20,6 +20,7 @@ interface NotificationContextType {
   unreadCount: number;
   loading: boolean;
   markAsRead: (notificationId: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
   createNotification: (data: Omit<Notification, 'id' | 'createdAt' | 'readBy'>) => Promise<void>;
 }
 
@@ -87,6 +88,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
+  const markAllAsRead = async () => {
+    if (!appUser || notifications.length === 0) return;
+    try {
+      const unread = notifications.filter(n => !n.readBy || !n.readBy.includes(appUser.uid));
+      if (unread.length === 0) return;
+
+      const promises = unread.map(notif => {
+        const docRef = doc(db, 'notifications', notif.id);
+        return updateDoc(docRef, {
+          readBy: arrayUnion(appUser.uid)
+        });
+      });
+      await Promise.all(promises);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
+
   const createNotification = async (data: Omit<Notification, 'id' | 'createdAt' | 'readBy'>) => {
     try {
       await addDoc(collection(db, 'notifications'), {
@@ -100,7 +119,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, loading, markAsRead, createNotification }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount, loading, markAsRead, markAllAsRead, createNotification }}>
       {children}
     </NotificationContext.Provider>
   );

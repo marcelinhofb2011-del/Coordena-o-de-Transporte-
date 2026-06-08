@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, Timestamp, where, updateDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bus as BusIcon, Plus, Trash2, Phone, User, Users, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { Bus as BusIcon, Plus, Trash2, Phone, User, Users, Info, ChevronDown, ChevronUp, Pencil, X } from 'lucide-react';
 import { db } from '../services/firebase';
-import { Bus, UserRole, Congregation } from '../types';
+import { Bus, UserRole, Congregation, Reservation } from '../types';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,7 +11,9 @@ const BusesView: React.FC = () => {
   const { appUser } = useAuth();
   const [buses, setBuses] = useState<Bus[]>([]);
   const [congregations, setCongregations] = useState<Congregation[]>([]);
-  const [isOpenForm, setIsOpenForm] = useState(true);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [isOpenForm, setIsOpenForm] = useState(false);
+  const [editingBusId, setEditingBusId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -57,6 +59,21 @@ const BusesView: React.FC = () => {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    if (!appUser) return;
+
+    let resQuery = query(collection(db, 'reservations'));
+    if (appUser.role !== UserRole.ADMIN && appUser.congregationId) {
+      resQuery = query(resQuery, where('congregationId', '==', appUser.congregationId));
+    }
+
+    const unsubscribe = onSnapshot(resQuery, (snap) => {
+      setReservations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation)));
+    });
+
+    return unsubscribe;
+  }, [appUser]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appUser) return;
@@ -66,14 +83,31 @@ const BusesView: React.FC = () => {
       return;
     }
 
-    const busData = {
-      ...formData,
-      congregationId: appUser.role === UserRole.ADMIN ? formData.congregationId : (appUser.congregationId || ''),
-      createdAt: Timestamp.now()
-    };
-
     try {
-      await addDoc(collection(db, 'buses'), busData);
+      if (editingBusId) {
+        const busRef = doc(db, 'buses', editingBusId);
+        const busData = {
+          name: formData.name,
+          number: formData.number,
+          company: formData.company,
+          driver: formData.driver,
+          driverPhone: formData.driverPhone,
+          capacity: formData.capacity,
+          plate: formData.plate,
+          notes: formData.notes,
+          congregationId: appUser.role === UserRole.ADMIN ? formData.congregationId : (appUser.congregationId || '')
+        };
+        await updateDoc(busRef, busData);
+        setEditingBusId(null);
+      } else {
+        const busData = {
+          ...formData,
+          congregationId: appUser.role === UserRole.ADMIN ? formData.congregationId : (appUser.congregationId || ''),
+          createdAt: Timestamp.now()
+        };
+        await addDoc(collection(db, 'buses'), busData);
+      }
+
       setFormData({ 
         name: '', 
         number: '', 
@@ -86,15 +120,36 @@ const BusesView: React.FC = () => {
         congregationId: '' 
       });
     } catch (err) {
-      console.error("Erro ao adicionar ônibus:", err);
-      alert("Ocorreu um erro ao registrar o ônibus.");
+      console.error("Erro ao salvar ônibus:", err);
+      alert("Ocorreu um erro ao salvar o ônibus.");
     }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingBusId(null);
+    setFormData({ 
+      name: '', 
+      number: '', 
+      company: '', 
+      driver: '', 
+      driverPhone: '', 
+      capacity: 50, 
+      plate: '', 
+      notes: '', 
+      congregationId: '' 
+    });
   };
 
   const getCongregationName = (id: string) => {
     if (!id) return "Geral / Todas";
     const found = congregations.find(c => c.id === id);
     return found ? found.name : "Geral / Todas";
+  };
+
+  const getBusOccupancy = (busId: string) => {
+    return reservations
+      .filter(r => r.busId === busId)
+      .reduce((acc, r) => acc + (r.passengers?.length || 0), 0);
   };
 
   const canManage = appUser?.role === UserRole.ADMIN || appUser?.role === UserRole.COORDINATOR;
@@ -138,9 +193,11 @@ const BusesView: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md shadow-sm mb-6">
               <div className="bg-[#f3f2f1] dark:bg-slate-800/60 px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                 <span className="text-xs font-bold text-[#323130] dark:text-slate-300 uppercase tracking-wider font-mono">
-                  Linha de Entrada de Dados (Novo Ônibus)
+                  {editingBusId ? "Alterar Dados do Ônibus" : "Linha de Entrada de Dados (Novo Ônibus)"}
                 </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400">Preencha os campos abaixo de maneira integrada</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                  {editingBusId ? "Editando as informações selecionadas" : "Preencha os campos abaixo de maneira integrada"}
+                </span>
               </div>
               
               <form onSubmit={handleSubmit} className="p-4 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 items-end">
@@ -269,14 +326,24 @@ const BusesView: React.FC = () => {
                 </div>
 
                 {/* Submit Action Button */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 flex gap-2">
                   <button
                     type="submit"
-                    className="w-full bg-[#0078d4] hover:bg-[#106ebe] text-white py-1.5 px-4 font-bold text-xs uppercase tracking-wider rounded-sm shadow-sm transition-all flex items-center justify-center gap-2 hover:shadow"
+                    className="flex-1 bg-[#0078d4] hover:bg-[#106ebe] text-white py-1.5 px-3 font-bold text-xs uppercase tracking-wider rounded-sm shadow-sm transition-all flex items-center justify-center gap-1.5 hover:shadow"
                   >
-                    <Plus size={14} />
-                    <span>Salvar Linha</span>
+                    {editingBusId ? <Pencil size={13} /> : <Plus size={13} />}
+                    <span>{editingBusId ? "Salvar" : "Salvar Linha"}</span>
                   </button>
+                  {editingBusId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="px-3 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 py-1.5 font-bold text-xs uppercase tracking-wider rounded-sm shadow-sm transition-all flex items-center justify-center gap-1 hover:shadow"
+                    >
+                      <X size={13} />
+                      <span>Sair</span>
+                    </button>
+                  )}
                 </div>
               </form>
             </div>
@@ -319,7 +386,7 @@ const BusesView: React.FC = () => {
                   <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50 w-36">Telefone</th>
                   <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50 w-32">Locado Para</th>
                   <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50 w-24">Placa</th>
-                  <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50 w-28 text-center">Assentos</th>
+                  <th className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800/50 w-36 text-center">Assentos / Ocupação</th>
                   {canManage && <th className="px-4 py-2.5 w-16 text-center">Ações</th>}
                 </tr>
               </thead>
@@ -389,23 +456,79 @@ const BusesView: React.FC = () => {
                       )}
                     </td>
 
-                    {/* Capacity */}
-                    <td className="px-4 py-3 text-center font-bold text-slate-800 dark:text-white bg-slate-50/10 dark:bg-slate-800/5 border-r border-slate-100 dark:border-slate-800/50">
-                      <div className="flex items-center justify-center gap-1.5 font-sans">
-                        <Users size={12} className="text-slate-400" />
-                        <span>{bus.capacity}</span>
-                        <span className="text-[10px] font-normal text-slate-400">poltronas</span>
-                      </div>
+                    {/* Capacity / Occupancy */}
+                    <td className="px-4 py-3 text-left font-bold text-slate-800 dark:text-white bg-slate-50/10 dark:bg-slate-800/5 border-r border-[#f2f2f2] dark:border-slate-800/50 min-w-[150px]">
+                      {(() => {
+                        const occupied = getBusOccupancy(bus.id);
+                        const capacity = bus.capacity || 1;
+                        const percentage = Math.min(100, (occupied / capacity) * 100);
+                        const isFull = occupied >= capacity;
+                        
+                        return (
+                          <div className="space-y-1.5 font-sans">
+                            <div className="flex items-center justify-between text-[11px] font-extrabold gap-2">
+                              <span className={cn(
+                                "flex items-center gap-1 whitespace-nowrap",
+                                isFull ? "text-rose-600 dark:text-rose-400" : "text-[#0078d4] dark:text-blue-400"
+                              )}>
+                                <Users size={12} className="shrink-0" />
+                                {occupied} / {capacity} Pac.
+                              </span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold whitespace-nowrap">
+                                {percentage.toFixed(0)}%
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-850 rounded-full overflow-hidden border border-slate-200/40 dark:border-slate-800/40">
+                              <div 
+                                className={cn(
+                                  "h-full rounded-full transition-all duration-500",
+                                  isFull 
+                                    ? "bg-rose-600 dark:bg-rose-500" 
+                                    : percentage > 85 
+                                      ? "bg-amber-500 dark:bg-amber-400" 
+                                      : "bg-[#0078d4] dark:bg-blue-500"
+                                )}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Action buttons list */}
                     {canManage && (
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-center flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingBusId(bus.id);
+                            setFormData({
+                              name: bus.name || '',
+                              number: bus.number || '',
+                              company: bus.company || '',
+                              driver: bus.driver || '',
+                              driverPhone: bus.driverPhone || '',
+                              capacity: bus.capacity || 50,
+                              plate: bus.plate || '',
+                              notes: bus.notes || '',
+                              congregationId: bus.congregationId || ''
+                            });
+                            setIsOpenForm(true);
+                          }}
+                          className="p-1.5 text-slate-600 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-sm transition-colors"
+                          title="Editar Linha"
+                        >
+                          <Pencil size={13} />
+                        </button>
                         <button
                           type="button"
                           onClick={async () => {
                             if (window.confirm(`Tem certeza de que deseja remover o ônibus "${bus.name}" (Ficha Nº ${bus.number}) da planilha do sistema? Desassociará as informações de controle.`)) {
                               await deleteDoc(doc(db, 'buses', bus.id));
+                              if (editingBusId === bus.id) {
+                                handleCancelEdit();
+                              }
                             }
                           }}
                           className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 dark:hover:bg-red-950/30 rounded-sm transition-colors"
