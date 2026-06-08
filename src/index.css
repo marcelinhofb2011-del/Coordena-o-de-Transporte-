@@ -109,17 +109,104 @@
   }
 }
 
+/* Force light high-contrast layout for PDF generation rendering */
+.pdf-render-mode {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  width: 1120px !important; /* Force a standard desktop width for screenshot to capture all columns */
+  max-width: none !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+}
+.pdf-render-mode * {
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: none !important;
+}
+.pdf-render-mode .pdf-hide,
+.pdf-render-mode .print\:hidden,
+.pdf-render-mode button,
+.pdf-render-mode select,
+.pdf-render-mode input,
+.pdf-render-mode textarea {
+  display: none !important;
+}
+.pdf-render-mode .pdf-show,
+.pdf-render-mode .hidden.print\:block {
+  display: block !important;
+}
+.pdf-render-mode .text-rose-600,
+.pdf-render-mode .text-rose-500,
+.pdf-render-mode .text-rose-650 {
+  color: #dc2626 !important;
+}
+.pdf-render-mode .text-emerald-600,
+.pdf-render-mode .text-emerald-500,
+.pdf-render-mode .text-[#107c41] {
+  color: #16a34a !important;
+}
+.pdf-render-mode .text-slate-400,
+.pdf-render-mode .text-slate-500 {
+  color: #64748b !important;
+}
+.pdf-render-mode .bg-slate-50,
+.pdf-render-mode .bg-slate-50\/20,
+.pdf-render-mode .bg-slate-50\/50 {
+  background-color: #f8fafc !important;
+}
+.pdf-render-mode .bg-rose-50 {
+  background-color: #fef2f2 !important;
+}
+.pdf-render-mode .bg-emerald-50 {
+  background-color: #f0fdf4 !important;
+}
+.pdf-render-mode .bg-amber-50 {
+  background-color: #fef3c7 !important;
+}
+.pdf-render-mode .overflow-x-auto,
+.pdf-render-mode .overflow-y-auto {
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  max-height: none !important;
+}
+.pdf-render-mode table {
+  width: 100% !important;
+  table-layout: auto !important;
+}
+
+/* Show print-only header during PDF export */
+.pdf-render-mode .hidden.print\:block {
+  display: block !important;
+}
+
 @media print {
-  .print-hidden {
+  .print-hidden, .print\:hidden {
     display: none !important;
   }
-  .print-only {
+  .print-only, .print\:block {
     display: block !important;
   }
   body {
     background: white !important;
+    color: #0f172a !important;
   }
   main {
     padding: 0 !important;
+  }
+  /* Remove scroll limitations on tables in print so everything renders without scrollbars */
+  .overflow-x-auto, .overflow-y-auto {
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    max-height: none !important;
+  }
+  table {
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+  /* Ensure page breaks don't cut lines awkwardly */
+  tr {
+    page-break-inside: avoid !important;
   }
 }

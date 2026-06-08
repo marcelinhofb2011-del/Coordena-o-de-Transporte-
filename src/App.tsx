@@ -23,7 +23,17 @@ import NotificationBell from './components/NotificationBell';
 function AppContent() {
   const { appUser, user, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [currentTab, setCurrentTab] = useState('dashboard');
+  const [currentTab, setCurrentTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam) return tabParam;
+
+      const hashParam = window.location.hash.replace('#', '');
+      if (hashParam) return hashParam;
+    }
+    return 'dashboard';
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   React.useEffect(() => {
