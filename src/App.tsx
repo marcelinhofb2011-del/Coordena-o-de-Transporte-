@@ -54,7 +54,7 @@ function AppContent() {
   if (appUser && appUser.role !== UserRole.ADMIN && !appUser.congregationId) {
     return (
       <div className="min-h-screen bg-[#f2f2f2] dark:bg-slate-950 flex items-center justify-center p-6 text-center transition-colors duration-300">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md ms-card p-10 dark:bg-slate-900 dark:border-slate-800">
+        <div className="w-full max-w-md ms-card p-10 dark:bg-slate-900 dark:border-slate-800">
           <div className="w-16 h-16 bg-amber-50 dark:bg-amber-950/30 text-amber-600 rounded-sm flex items-center justify-center mx-auto mb-8 border border-amber-100 dark:border-amber-900/50">
             <Shield size={32} />
           </div>
@@ -62,11 +62,6 @@ function AppContent() {
           <p className="text-[#707070] dark:text-slate-400 text-sm mb-8">
             Seu perfil ({appUser.role === UserRole.COORDINATOR ? 'Coordenador' : 'Apoio'}) ainda não foi vinculado a uma congregação. Por favor, peça ao administrador para vincular sua conta a uma congregação e liberar as permissões necessárias.
           </p>
-          <div className="p-3 bg-[#f2f2f2] dark:bg-slate-800 rounded-sm text-[10px] font-mono text-[#707070] dark:text-slate-400 break-all mb-8 text-left">
-            USUÁRIO: {appUser.email}<br/>
-            ROLE: {appUser.role}<br/>
-            UID: {user.uid}
-          </div>
           <button 
             onClick={() => logout()}
             className="flex items-center gap-2 px-6 py-2 bg-[#e81123] text-white text-sm font-semibold rounded-sm hover:bg-red-700 transition-all mx-auto shadow-md"
@@ -74,7 +69,7 @@ function AppContent() {
             <LogOut size={16} />
             Sair do Sistema
           </button>
-        </motion.div>
+        </div>
       </div>
     );
   }
