@@ -52,6 +52,8 @@ function AppContent() {
 
   // Lógica de bloqueio para usuários não vinculados
   if (appUser && appUser.role !== UserRole.ADMIN && !appUser.congregationId) {
+    const roleLabel = appUser.role === UserRole.COORDINATOR ? 'Coordenador' : 
+                      appUser.role === UserRole.USER ? 'Capitão de Ônibus' : 'Auxiliar do Capitão';
     return (
       <div className="min-h-screen bg-[#f2f2f2] dark:bg-slate-950 flex items-center justify-center p-6 text-center transition-colors duration-300">
         <div className="w-full max-w-md ms-card p-10 dark:bg-slate-900 dark:border-slate-800">
@@ -60,7 +62,7 @@ function AppContent() {
           </div>
           <h2 className="text-2xl font-bold text-[#1b1b1b] dark:text-white mb-4">Acesso Restrito</h2>
           <p className="text-[#707070] dark:text-slate-400 text-sm mb-8">
-            Seu perfil ({appUser.role === UserRole.COORDINATOR ? 'Coordenador' : 'Apoio'}) ainda não foi vinculado a uma congregação. Por favor, peça ao administrador para vincular sua conta a uma congregação e liberar as permissões necessárias.
+            Seu perfil ({roleLabel}) ainda não foi vinculado a uma congregação. Por favor, peça ao administrador para vincular sua conta a uma congregação e liberar as permissões necessárias.
           </p>
           <button 
             onClick={() => logout()}
@@ -129,7 +131,8 @@ function AppContent() {
                 <p className="text-xs font-semibold text-[#1b1b1b] dark:text-white leading-none mb-0.5">{appUser?.name || 'Carregando...'}</p>
                 <p className="text-[10px] font-medium text-[#0067b8] dark:text-blue-400 uppercase tracking-wide leading-none">
                   {appUser?.role === UserRole.ADMIN ? 'Administrador' : 
-                   appUser?.role === UserRole.COORDINATOR ? 'Coordenador' : 'Apoio'}
+                   appUser?.role === UserRole.COORDINATOR ? 'Coordenador' : 
+                   appUser?.role === UserRole.USER ? 'Capitão de Ônibus' : 'Auxiliar do Capitão'}
                 </p>
               </div>
               <div className="w-8 h-8 rounded-sm bg-slate-900 dark:bg-slate-700 text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm">

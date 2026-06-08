@@ -49,16 +49,16 @@ export default function BottomNav({ currentTab, onTabChange }: BottomNavProps) {
 
   const navItems = [
     { id: 'dashboard', label: 'Início', icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.COORDINATOR], color: 'text-indigo-600', bg: 'bg-indigo-600' },
-    { id: 'reservations', label: 'Registros', icon: Users, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER], color: 'text-emerald-600', bg: 'bg-emerald-600' },
-    { id: 'new-reservation', label: 'Novo', icon: PlusCircle, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER], color: 'text-rose-600', bg: 'bg-rose-600' },
-    { id: 'manifest', label: 'Lista', icon: ClipboardList, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER], color: 'text-amber-600', bg: 'bg-amber-600' },
-    { id: 'buses', label: 'Frota', icon: FileText, roles: [UserRole.ADMIN, UserRole.COORDINATOR], color: 'text-blue-600', bg: 'bg-blue-600' },
+    { id: 'reservations', label: 'Registros', icon: Users, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER, UserRole.ASSISTANT], color: 'text-emerald-600', bg: 'bg-emerald-600' },
+    { id: 'new-reservation', label: 'Novo', icon: PlusCircle, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER, UserRole.ASSISTANT], color: 'text-rose-600', bg: 'bg-rose-600' },
+    { id: 'manifest', label: 'Lista', icon: ClipboardList, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER, UserRole.ASSISTANT], color: 'text-amber-600', bg: 'bg-amber-600' },
+    { id: 'buses', label: 'Frota', icon: FileText, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER, UserRole.ASSISTANT], color: 'text-blue-600', bg: 'bg-blue-600' },
     { id: 'settings', label: 'Ajustes', icon: Settings, roles: [UserRole.ADMIN], color: 'text-slate-900', bg: 'bg-slate-900' },
   ];
 
   const filteredItems = navItems.filter(item => {
     const hasRole = item.roles.includes(appUser.role);
-    if (item.id === 'new-reservation' && appUser.role === UserRole.USER) {
+    if (item.id === 'new-reservation' && (appUser.role === UserRole.USER || appUser.role === UserRole.ASSISTANT)) {
       return hasRole && appUser.canSell;
     }
     return hasRole;

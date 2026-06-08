@@ -374,9 +374,11 @@ const NewReservation: React.FC = () => {
                     onChange={e => setFormData({ ...formData, busId: e.target.value })}
                   >
                     <option value="" className="dark:bg-slate-900">Selecione</option>
-                    {buses.map(bus => (
-                      <option key={bus.id} value={bus.id} className="dark:bg-slate-900">{bus.name} - {bus.number}</option>
-                    ))}
+                    {buses
+                      .filter(bus => appUser?.role === UserRole.ADMIN || bus.congregationId === appUser?.congregationId)
+                      .map(bus => (
+                        <option key={bus.id} value={bus.id} className="dark:bg-slate-900">{bus.name} - {bus.number}</option>
+                      ))}
                   </select>
                 </div>
                 <div className="space-y-2">

@@ -107,10 +107,8 @@ const RegistriesView: React.FC = () => {
   useEffect(() => {
     if (!appUser) return;
     let resQuery = query(collection(db, 'reservations'));
-    if (appUser.role === UserRole.COORDINATOR && appUser.congregationId) {
+    if ((appUser.role === UserRole.COORDINATOR || appUser.role === UserRole.USER || appUser.role === UserRole.ASSISTANT) && appUser.congregationId) {
       resQuery = query(resQuery, where('congregationId', '==', appUser.congregationId));
-    } else if (appUser.role === UserRole.USER) {
-      resQuery = query(resQuery, where('createdBy', '==', appUser.uid));
     }
 
     const unsubRes = onSnapshot(resQuery, (snap) => {
@@ -145,6 +143,10 @@ const RegistriesView: React.FC = () => {
 
   const handleDelete = async () => {
     if (!deleteId) return;
+    if (appUser?.role === UserRole.ASSISTANT) {
+      alert('Sua conta não tem permissão para excluir registros.');
+      return;
+    }
     const res = reservations.find(r => r.id === deleteId);
     await deleteDoc(doc(db, 'reservations', deleteId));
     if (res) {
@@ -562,7 +564,9 @@ const RegistriesView: React.FC = () => {
                       >
                         <Edit2 size={16} />
                       </button>
-                      <button onClick={() => setDeleteId(res.id)} className="p-2 text-[#707070] dark:text-slate-400 hover:text-[#e81123] dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-sm transition-all"><Trash2 size={16} /></button>
+                      {appUser?.role !== UserRole.ASSISTANT && (
+                        <button onClick={() => setDeleteId(res.id)} className="p-2 text-[#707070] dark:text-slate-400 hover:text-[#e81123] dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-sm transition-all"><Trash2 size={16} /></button>
+                      )}
                     </div>
                   </td>
                 </motion.tr>
@@ -623,6 +627,7 @@ const RegistriesView: React.FC = () => {
                         <button
                           key={day}
                           type="button"
+                          disabled={appUser?.role === UserRole.ASSISTANT}
                           onClick={() => {
                             if (isSelected) {
                               setEditDays(editDays.filter(d => d !== day));
@@ -634,7 +639,8 @@ const RegistriesView: React.FC = () => {
                             "py-3 rounded-xl border-2 font-bold text-xs transition-colors uppercase tracking-wider",
                             isSelected
                               ? "bg-slate-900 dark:bg-blue-600 border-slate-900 dark:border-blue-600 text-white"
-                              : "bg-[#f2f2f2] dark:bg-slate-800/50 border-transparent text-[#707070] dark:text-slate-400 hover:bg-[#eaeaea] dark:hover:bg-slate-800"
+                              : "bg-[#f2f2f2] dark:bg-slate-800/50 border-transparent text-[#707070] dark:text-slate-400 hover:bg-[#eaeaea] dark:hover:bg-slate-800",
+                            appUser?.role === UserRole.ASSISTANT && "opacity-60 cursor-not-allowed"
                           )}
                         >
                           {day}
@@ -648,14 +654,16 @@ const RegistriesView: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Passageiros / Dependentes</label>
-                    <button
-                      type="button"
-                      onClick={handleAddEditPassenger}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors"
-                    >
-                      <Plus size={12} />
-                      Adicionar
-                    </button>
+                    {appUser?.role !== UserRole.ASSISTANT && (
+                      <button
+                        type="button"
+                        onClick={handleAddEditPassenger}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors"
+                      >
+                        <Plus size={12} />
+                        Adicionar
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-3">
                     {editPassengers.map((passenger, index) => (
@@ -665,7 +673,8 @@ const RegistriesView: React.FC = () => {
                             required
                             type="text"
                             placeholder="Nome Completo"
-                            className="w-full px-2 py-1 bg-transparent border-b border-slate-300 dark:border-slate-800 outline-none text-xs font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-500 transition-all font-sans"
+                            disabled={appUser?.role === UserRole.ASSISTANT}
+                            className="w-full px-2 py-1 bg-transparent border-b border-slate-300 dark:border-slate-800 outline-none text-xs font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-500 transition-all font-sans disabled:opacity-60"
                             value={passenger.name}
                             onChange={(e) => handleEditPassengerChange(index, 'name', e.target.value)}
                           />
@@ -673,12 +682,13 @@ const RegistriesView: React.FC = () => {
                             required
                             type="text"
                             placeholder="Documento (RG/CPF)"
-                            className="w-full px-2 py-1 bg-transparent border-b border-slate-300 dark:border-slate-800 outline-none text-xs font-medium text-slate-600 dark:text-slate-400 focus:border-indigo-500 dark:focus:border-blue-500 transition-all font-sans"
+                            disabled={appUser?.role === UserRole.ASSISTANT}
+                            className="w-full px-2 py-1 bg-transparent border-b border-slate-300 dark:border-slate-800 outline-none text-xs font-medium text-slate-600 dark:text-slate-400 focus:border-indigo-500 dark:focus:border-blue-500 transition-all font-sans disabled:opacity-60"
                             value={passenger.document || ''}
                             onChange={(e) => handleEditPassengerChange(index, 'document', e.target.value)}
                           />
                         </div>
-                        {editPassengers.length > 1 && (
+                        {editPassengers.length > 1 && appUser?.role !== UserRole.ASSISTANT && (
                           <button
                             type="button"
                             onClick={() => handleRemoveEditPassenger(index)}
@@ -697,7 +707,8 @@ const RegistriesView: React.FC = () => {
                   <div className="space-y-1">
                     <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Ônibus Selecionado</label>
                     <select
-                      className="w-full p-3 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:border-indigo-500 dark:focus:border-blue-500 dark:text-white font-semibold transition-colors"
+                      disabled={appUser?.role === UserRole.ASSISTANT}
+                      className="w-full p-3 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:border-indigo-500 dark:focus:border-blue-500 dark:text-white font-semibold transition-colors disabled:opacity-60"
                       value={editBusId}
                       onChange={(e) => setEditBusId(e.target.value)}
                     >
@@ -733,8 +744,9 @@ const RegistriesView: React.FC = () => {
                 <div className="space-y-1">
                   <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Observações</label>
                   <textarea
+                    disabled={appUser?.role === UserRole.ASSISTANT}
                     placeholder="Instruções ou informações adicionais..."
-                    className="w-full p-3 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:border-indigo-500 dark:focus:border-blue-500 dark:text-white font-medium transition-colors resize-none h-20"
+                    className="w-full p-3 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:border-indigo-500 dark:focus:border-blue-500 dark:text-white font-medium transition-colors resize-none h-20 disabled:opacity-60"
                     value={editNotes}
                     onChange={(e) => setEditNotes(e.target.value)}
                   />

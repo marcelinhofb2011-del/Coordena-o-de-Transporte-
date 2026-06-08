@@ -40,21 +40,22 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setTab, isOpen, setIsOpen
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.COORDINATOR], color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
-    { id: 'reservations', label: 'Registros', icon: Users, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER], color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-    { id: 'new-reservation', label: 'Novo Registro', icon: PlusCircle, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER], color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900/20' },
-    { id: 'buses', label: 'Ônibus', icon: BusIcon, roles: [UserRole.ADMIN, UserRole.COORDINATOR], color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+    { id: 'reservations', label: 'Registros', icon: Users, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER, UserRole.ASSISTANT], color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+    { id: 'new-reservation', label: 'Novo Registro', icon: PlusCircle, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER, UserRole.ASSISTANT], color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900/20' },
+    { id: 'buses', label: 'Ônibus', icon: BusIcon, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER, UserRole.ASSISTANT], color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' },
     { id: 'congregations', label: 'Congregações', icon: MapPin, roles: [UserRole.ADMIN], color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/20' },
     { id: 'reports', label: 'Financeiro', icon: FileText, roles: [UserRole.ADMIN, UserRole.COORDINATOR], color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20' },
-    { id: 'manifest', label: 'Lista de Chamada', icon: ClipboardList, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER], color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+    { id: 'manifest', label: 'Lista de Chamada', icon: ClipboardList, roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.USER, UserRole.ASSISTANT], color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20' },
     { id: 'audit-logs', label: 'Histórico', icon: Activity, roles: [UserRole.ADMIN], color: 'text-slate-600 dark:text-slate-400', bg: 'bg-slate-50 dark:bg-slate-800/50' },
     { id: 'users', label: 'Usuários', icon: Shield, roles: [UserRole.ADMIN], color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-50 dark:bg-cyan-900/20' },
     { id: 'settings', label: 'Configurações', icon: SettingsIcon, roles: [UserRole.ADMIN], color: 'text-slate-900 dark:text-white', bg: 'bg-slate-100 dark:bg-slate-800' },
   ];
 
   const filteredItems = menuItems.filter(item => {
-    const hasRole = item.roles.includes(appUser?.role || UserRole.USER);
-    if (item.id === 'new-reservation' && appUser?.role === UserRole.USER) {
-      return hasRole && appUser.canSell;
+    const userRole = appUser?.role || UserRole.USER;
+    const hasRole = item.roles.includes(userRole);
+    if (item.id === 'new-reservation' && (userRole === UserRole.USER || userRole === UserRole.ASSISTANT)) {
+      return hasRole && appUser?.canSell;
     }
     return hasRole;
   });

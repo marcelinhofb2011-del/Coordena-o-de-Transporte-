@@ -128,7 +128,8 @@ const UsersView: React.FC = () => {
                   onChange={(e) => handleUpdateRole(user.uid, e.target.value as UserRole)}
                   disabled={appUser.role !== UserRole.ADMIN}
                 >
-                  <option value={UserRole.USER}>Apoio</option>
+                  <option value={UserRole.USER}>Capitão de Ônibus</option>
+                  <option value={UserRole.ASSISTANT}>Auxiliar do Capitão</option>
                   <option value={UserRole.COORDINATOR}>Coordenador</option>
                   <option value={UserRole.ADMIN}>Administrador</option>
                 </select>

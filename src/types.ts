@@ -1,7 +1,8 @@
 export enum UserRole {
   ADMIN = 'ADMIN',
   COORDINATOR = 'COORDINATOR',
-  USER = 'USER'
+  USER = 'USER',
+  ASSISTANT = 'ASSISTANT'
 }
 
 export enum PaymentStatus {

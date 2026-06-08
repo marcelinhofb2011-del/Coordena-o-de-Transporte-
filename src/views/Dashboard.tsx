@@ -48,10 +48,8 @@ const Dashboard: React.FC = () => {
     let resQuery = query(collection(db, 'reservations'));
     
     // Apply server-side filters to match security rules
-    if (appUser.role === UserRole.COORDINATOR && appUser.congregationId) {
+    if ((appUser.role === UserRole.COORDINATOR || appUser.role === UserRole.USER || appUser.role === UserRole.ASSISTANT) && appUser.congregationId) {
       resQuery = query(resQuery, where('congregationId', '==', appUser.congregationId));
-    } else if (appUser.role === UserRole.USER) {
-      resQuery = query(resQuery, where('createdBy', '==', appUser.uid));
     }
 
     const unsubRes = onSnapshot(resQuery, (snap) => {
