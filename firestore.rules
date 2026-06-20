@@ -12,7 +12,7 @@ service cloud.firestore {
 
     function isMasterAdmin() {
       return isSignedIn() && 
-             request.auth.token.keys().contains('email') &&
+             request.auth.token.email != null &&
              request.auth.token.email.lower() == 'marcelinhofb2011@gmail.com';
     }
 
@@ -116,6 +116,11 @@ service cloud.firestore {
         (getUserData().get('role', 'USER') in existing().get('targetRoles', []) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']))
       );
+    }
+
+    match /passengers_history/{passengerId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && canSell();
     }
 
     function existing() { return resource.data; }

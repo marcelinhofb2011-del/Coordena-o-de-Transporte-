@@ -5,9 +5,11 @@ import { db } from '../services/firebase';
 import { Reservation, Bus, Congregation, UserRole } from '../types';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
+import { useEvent } from '../contexts/EventContext';
 
 export default function ManifestView() {
   const { appUser } = useAuth();
+  const { selectedEventId } = useEvent();
   const [buses, setBuses] = useState<Bus[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [congregations, setCongregations] = useState<Congregation[]>([]);
@@ -39,11 +41,15 @@ export default function ManifestView() {
       }
     }
 
-    const unsubR = onSnapshot(resQuery, snap => 
-      setReservations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation)))
-    );
+    const unsubR = onSnapshot(resQuery, snap => {
+      const allRes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation));
+      const filteredRes = selectedEventId === 'all'
+        ? allRes
+        : allRes.filter(r => (r.eventId || 'default-congress-2026') === selectedEventId);
+      setReservations(filteredRes);
+    });
     return () => { unsubB(); unsubC(); unsubR(); };
-  }, [appUser]);
+  }, [appUser, selectedEventId]);
 
   const busInfo = buses.find(b => b.id === selectedBus);
   

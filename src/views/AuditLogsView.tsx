@@ -148,7 +148,7 @@ export default function AuditLogsView() {
       case LogAction.PAYMENT_UPDATE: 
         return { 
           icon: DollarSign, 
-          label: 'Recibo / Caixa',
+          label: 'Pagamento Atualizado',
           color: 'text-emerald-700 dark:text-emerald-450', 
           bg: 'bg-emerald-50 dark:bg-emerald-950/45',
           border: 'border-emerald-100 dark:border-emerald-900/30'
@@ -353,11 +353,11 @@ export default function AuditLogsView() {
         {/* Change / Update Events */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 p-4 rounded-sm flex flex-col justify-between hover:shadow-xs transition-shadow">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[9px] font-extrabold uppercase tracking-wider font-mono">Caixa & Tesouraria</span>
+            <span className="text-[9px] font-extrabold uppercase tracking-wider font-mono">Controle de Reservas</span>
             <DollarSign size={14} className="text-emerald-500" />
           </div>
           <div className="mt-2.5">
-            <p className="text-xs text-slate-400 mb-0.5 font-semibold">Ajustes de Recebíveis</p>
+            <p className="text-xs text-slate-400 mb-0.5 font-semibold">Atualizações de Pagamento</p>
             <p className="text-xl md:text-2xl font-mono font-bold text-emerald-600 dark:text-emerald-400">{paymentLogsCount}</p>
           </div>
         </div>
@@ -415,7 +415,7 @@ export default function AuditLogsView() {
               <option value={LogAction.RESERVATION_CREATE}>➕ Reserva Criada</option>
               <option value={LogAction.RESERVATION_UPDATE}>✏️ Reserva Editada</option>
               <option value={LogAction.RESERVATION_DELETE}>❌ Reserva Excluída</option>
-              <option value={LogAction.PAYMENT_UPDATE}>💰 Recibo / Caixa</option>
+              <option value={LogAction.PAYMENT_UPDATE}>💰 Confirmação de Pagamento</option>
             </select>
           </div>
 

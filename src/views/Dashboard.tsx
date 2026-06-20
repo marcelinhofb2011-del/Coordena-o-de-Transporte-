@@ -16,6 +16,7 @@ import { Bus, Reservation, PaymentStatus, UserRole } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useEvent } from '../contexts/EventContext';
 import { 
   BarChart, 
   Bar, 
@@ -32,6 +33,7 @@ import {
 const Dashboard: React.FC = () => {
   const { appUser } = useAuth();
   const { theme } = useTheme();
+  const { selectedEventId } = useEvent();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,11 @@ const Dashboard: React.FC = () => {
     }
 
     const unsubRes = onSnapshot(resQuery, (snap) => {
-      setReservations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation)));
+      const allRes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation));
+      const filteredRes = selectedEventId === 'all'
+        ? allRes
+        : allRes.filter(r => (r.eventId || 'default-congress-2026') === selectedEventId);
+      setReservations(filteredRes);
       setLoading(false);
     });
 
@@ -73,7 +79,7 @@ const Dashboard: React.FC = () => {
       unsubBuses();
       unsubCongs();
     };
-  }, [appUser]);
+  }, [appUser, selectedEventId]);
 
   useEffect(() => {
     if (buses.length > 0 && !selectedBusId) {

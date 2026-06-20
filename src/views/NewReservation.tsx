@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, Timestamp, addDoc, doc, getDoc, getDocs, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, Timestamp, addDoc, doc, setDoc, getDoc, getDocs, where } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, 
@@ -21,11 +21,17 @@ import {
 } from 'lucide-react';
 import { db, handleFirestoreError, createAuditLog, createNotification } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useEvent } from '../contexts/EventContext';
 import { Bus, Congregation, OperationType, PaymentStatus, Reservation, UserRole, Passenger, LogAction, NotificationType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 
 const NewReservation: React.FC = () => {
   const { appUser } = useAuth();
+  const { activeEventId, selectedEventId, events } = useEvent();
+  const effectiveEventId = (selectedEventId && selectedEventId !== 'all') ? selectedEventId : activeEventId;
+  const currentEvent = events.find(e => e.id === effectiveEventId);
+  const isAssembleia = currentEvent?.eventType === 'assembleia';
+
   const [buses, setBuses] = useState<Bus[]>([]);
   const [congregations, setCongregations] = useState<Congregation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,6 +43,10 @@ const NewReservation: React.FC = () => {
     'Sábado': 0,
     'Domingo': 0
   });
+
+  // Autocomplete Passenger History State
+  const [passengerHistoryList, setPassengerHistoryList] = useState<{name: string, document: string}[]>([]);
+  const [activePassengerIndex, setActivePassengerIndex] = useState<number | null>(null);
 
   // Form State
   const [passengers, setPassengers] = useState<Passenger[]>([{ name: '', document: '' }]);
@@ -52,27 +62,43 @@ const NewReservation: React.FC = () => {
 
   const availableDays = ['Sexta', 'Sábado', 'Domingo'];
 
+  // Update prices on selectedEventId / events mapping change
+  useEffect(() => {
+    if (currentEvent) {
+      const base = currentEvent.ticketPrice || 0;
+      setGlobalPrice(base);
+      setDailyPrices(currentEvent.dailyPrices || {
+        'Sexta': base || 42,
+        'Sábado': base || 36,
+        'Domingo': base || 36
+      });
+
+      if (currentEvent.eventType === 'assembleia') {
+        setSelectedDays([currentEvent.assemblyDay || 'Sábado']);
+      }
+    } else {
+      // Fallback global pricing from firebase settings
+      getDoc(doc(db, 'settings', 'global')).then(docSnap => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const base = data.ticketPrice || 0;
+          setGlobalPrice(base);
+          setDailyPrices(data.dailyPrices || {
+            'Sexta': base || 42,
+            'Sábado': base || 36,
+            'Domingo': base || 36
+          });
+        }
+      }).catch(err => {
+        console.error('Error fetching global settings fallback:', err);
+      });
+    }
+  }, [selectedEventId, activeEventId, events]);
+
   useEffect(() => {
     if (appUser?.congregationId) {
       setFormData(prev => ({ ...prev, congregationId: appUser.congregationId! }));
     }
-
-    const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const base = data.ticketPrice || 0;
-        setGlobalPrice(base);
-        setDailyPrices(data.dailyPrices || {
-          'Sexta': base || 42,
-          'Sábado': base || 36,
-          'Domingo': base || 36
-        });
-      } else {
-        console.warn('Settings global document not found');
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'settings/global');
-    });
 
     const qBuses = query(collection(db, 'buses'), orderBy('name'));
     const unsubBuses = onSnapshot(qBuses, (snap) => {
@@ -88,10 +114,58 @@ const NewReservation: React.FC = () => {
       handleFirestoreError(error, OperationType.LIST, 'congregations');
     });
 
+    // Combined passenger autocomplete history from passengers_history collection AND past reservations
+    let historyFromDb: { name: string; document: string }[] = [];
+    let historyFromRes: { name: string; document: string }[] = [];
+
+    const updateCombinedList = () => {
+      const historyMap = new Map<string, { name: string; document: string }>();
+      historyFromDb.forEach(p => {
+        historyMap.set(p.name.toLowerCase(), p);
+      });
+      historyFromRes.forEach(p => {
+        if (!historyMap.has(p.name.toLowerCase())) {
+          historyMap.set(p.name.toLowerCase(), p);
+        }
+      });
+      const list = Array.from(historyMap.values());
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      setPassengerHistoryList(list);
+    };
+
+    const unsubHistory = onSnapshot(collection(db, 'passengers_history'), (snap) => {
+      historyFromDb = snap.docs.map(doc => {
+        const d = doc.data();
+        return { name: (d.name || '').trim(), document: (d.document || '').trim() };
+      }).filter(p => p.name && p.document);
+      updateCombinedList();
+    }, (error) => {
+      console.warn('Error reading passenger history', error);
+    });
+
+    const unsubReservationsForHistory = onSnapshot(collection(db, 'reservations'), (snap) => {
+      const parsed: { name: string; document: string }[] = [];
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.passengers && Array.isArray(data.passengers)) {
+          data.passengers.forEach((p: any) => {
+            if (p && p.name && p.document) {
+              parsed.push({ name: String(p.name).trim(), document: String(p.document).trim() });
+            }
+          });
+        }
+      });
+      historyFromRes = parsed;
+      updateCombinedList();
+    }, (error) => {
+      console.warn('Error reading reservations for history', error);
+    });
+
     return () => {
-      unsubSettings();
       unsubBuses();
       unsubCongs();
+      unsubHistory();
+      unsubReservationsForHistory();
     };
   }, [appUser]);
 
@@ -178,9 +252,12 @@ const NewReservation: React.FC = () => {
       const qOccupancy = query(collection(db, 'reservations'), where('busId', '==', formData.busId));
       const occupancySnap = await getDocs(qOccupancy);
       let currentOccupied = 0;
+      const targetEventId = (selectedEventId && selectedEventId !== 'all') ? selectedEventId : (activeEventId || 'default-congress-2026');
       occupancySnap.docs.forEach(doc => {
         const resData = doc.data();
-        currentOccupied += (resData.passengers?.length || 0);
+        if ((resData.eventId || 'default-congress-2026') === targetEventId) {
+          currentOccupied += (resData.passengers?.length || 0);
+        }
       });
 
       if (currentOccupied + passengers.length > busData.capacity) {
@@ -189,7 +266,21 @@ const NewReservation: React.FC = () => {
       
       const paymentStatus = isPaid ? PaymentStatus.PAGO : (isPartial ? PaymentStatus.PARCIAL : PaymentStatus.PENDENTE);
 
+      // Save/merge passengers to passengers_history for autocomplete / future events
+      for (const p of passengers) {
+        if (p.name && p.document) {
+          const docId = p.name.trim().toLowerCase();
+          await setDoc(doc(db, 'passengers_history', docId), {
+            name: p.name.trim(),
+            document: p.document.trim(),
+            congregationId: formData.congregationId,
+            updatedAt: Timestamp.now()
+          }, { merge: true });
+        }
+      }
+
       const reservation: Partial<Reservation> = {
+        eventId: targetEventId,
         passengers,
         days: selectedDays,
         notes: formData.notes,
@@ -299,9 +390,43 @@ const NewReservation: React.FC = () => {
                 key={index} 
                 className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end"
               >
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                   <label className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest ml-1">Nome Completo</label>
-                  <input required className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400 placeholder:text-slate-300 dark:placeholder:text-slate-700 transition-all" placeholder="Nome" value={passenger.name} onChange={e => handlePassengerChange(index, 'name', e.target.value)} />
+                  <input 
+                    required 
+                    autoComplete="off"
+                    className="w-full px-0 py-3 bg-transparent border-b-2 border-slate-600 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white focus:border-indigo-500 dark:focus:border-blue-400 placeholder:text-slate-300 dark:placeholder:text-slate-700 transition-all" 
+                    placeholder="Nome" 
+                    value={passenger.name} 
+                    onChange={e => handlePassengerChange(index, 'name', e.target.value)} 
+                    onFocus={() => setActivePassengerIndex(index)}
+                    onBlur={() => setTimeout(() => setActivePassengerIndex(null), 250)}
+                  />
+
+                  {/* Suggestion Dropdown */}
+                  {activePassengerIndex === index && passenger.name.trim().length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 transition-all">
+                      {passengerHistoryList
+                        .filter(hist => hist.name.toLowerCase().includes(passenger.name.toLowerCase()) && hist.name.toLowerCase() !== passenger.name.toLowerCase())
+                        .slice(0, 5)
+                        .map((hist, sIdx) => (
+                          <button
+                            key={sIdx}
+                            type="button"
+                            onMouseDown={() => {
+                              const updated = [...passengers];
+                              updated[index] = { name: hist.name, document: hist.document };
+                              setPassengers(updated);
+                              setActivePassengerIndex(null);
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-bold flex flex-col gap-0.5 transition-colors"
+                          >
+                            <span className="font-sans text-slate-900 dark:text-white">{hist.name}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">Doc: {hist.document}</span>
+                          </button>
+                        ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 space-y-2">
@@ -328,31 +453,50 @@ const NewReservation: React.FC = () => {
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">Período</h2>
               </div>
 
-              <div className="flex flex-wrap gap-3">
-                {availableDays.map(day => (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => toggleDay(day)}
-                    className={cn(
-                      "flex-1 min-w-[100px] p-5 rounded-2xl font-bold transition-all flex flex-col items-center gap-1.5 border-2",
-                      selectedDays.includes(day)
-                        ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200 dark:shadow-none"
-                        : "bg-white dark:bg-slate-900 border-slate-500 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-800 dark:hover:border-slate-500"
-                    )}
-                  >
-                    <span className="text-2xl">
-                      {day === 'Sexta' && '🗓️'}
-                      {day === 'Sábado' && '📅'}
-                      {day === 'Domingo' && '☀️'}
-                    </span>
-                    <span className="uppercase text-[9px] tracking-widest">{day}</span>
-                    <span className="text-[10px] font-mono opacity-80">
-                      {formatCurrency(dailyPrices[day] !== undefined ? dailyPrices[day] : globalPrice)}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              {isAssembleia ? (
+                /* Assembleia - Day is fixed */
+                <div className="p-4 bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/50 dark:border-amber-900/30 rounded-2xl flex items-center gap-4 animate-fadeIn w-full">
+                  <div className="w-12 h-12 bg-amber-100 dark:bg-amber-950/40 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-400 text-xl font-bold">
+                    📅
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase text-amber-800 dark:text-amber-400 tracking-wider">Período de Dia Único (Assembleia)</h3>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-350 font-bold mt-0.5">
+                      Esta Assembleia realiza-se em uma <span className="text-slate-900 dark:text-white underline">{currentEvent?.assemblyDay || 'Sábado'}</span>.
+                    </p>
+                    <div className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 text-[10px] font-mono font-black text-slate-800 dark:text-slate-200">
+                      Tarifa: {formatCurrency(dailyPrices[currentEvent?.assemblyDay || 'Sábado'] || globalPrice)}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Congresso - Multi-day selections allowed */
+                <div className="flex flex-wrap gap-3">
+                  {availableDays.map(day => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => toggleDay(day)}
+                      className={cn(
+                        "flex-grow md:flex-1 min-w-[100px] p-5 rounded-2xl font-bold transition-all flex flex-col items-center gap-1.5 border-2",
+                        selectedDays.includes(day)
+                          ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200 dark:shadow-none"
+                          : "bg-white dark:bg-slate-900 border-slate-500 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-800 dark:hover:border-slate-500"
+                      )}
+                    >
+                      <span className="text-2xl">
+                        {day === 'Sexta' && '🗓️'}
+                        {day === 'Sábado' && '📅'}
+                        {day === 'Domingo' && '☀️'}
+                      </span>
+                      <span className="uppercase text-[9px] tracking-widest">{day}</span>
+                      <span className="text-[10px] font-mono opacity-80">
+                        {formatCurrency(dailyPrices[day] !== undefined ? dailyPrices[day] : globalPrice)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* Logística */}

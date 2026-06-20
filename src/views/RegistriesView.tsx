@@ -28,10 +28,12 @@ import {
 import { db, createAuditLog, createNotification } from '../services/firebase';
 import { Reservation, PaymentStatus, Bus, Congregation, UserRole, LogAction, NotificationType, Passenger } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { useEvent } from '../contexts/EventContext';
 import { cn, formatCurrency } from '../lib/utils';
 
 const RegistriesView: React.FC = () => {
   const { appUser } = useAuth();
+  const { selectedEventId } = useEvent();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [congregations, setCongregations] = useState<Congregation[]>([]);
@@ -119,7 +121,10 @@ const RegistriesView: React.FC = () => {
         const timeB = b.createdAt?.seconds || 0;
         return timeB - timeA;
       });
-      setReservations(data);
+      const filteredRes = selectedEventId === 'all'
+        ? data
+        : data.filter(r => (r.eventId || 'default-congress-2026') === selectedEventId);
+      setReservations(filteredRes);
     }, (error) => {
       console.error("Error loading reservations:", error);
     });
@@ -130,7 +135,7 @@ const RegistriesView: React.FC = () => {
       setCongregations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Congregation)));
     });
     return () => { unsubRes(); unsubB(); unsubC(); };
-  }, [appUser]);
+  }, [appUser, selectedEventId]);
 
   const filteredReservations = reservations.filter(res => {
     const passengersText = res.passengers?.map(p => p.name + p.document).join(' ').toLowerCase() || '';

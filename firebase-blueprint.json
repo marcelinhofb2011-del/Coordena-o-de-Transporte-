@@ -91,6 +91,18 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["action", "userId", "createdAt"]
+    },
+    "PassengerHistory": {
+      "title": "PassengerHistory",
+      "description": "Historical records of past passengers for autocomplete.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "document": { "type": "string" },
+        "congregationId": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "document"]
     }
   },
   "firestore": {
@@ -117,6 +129,10 @@
     "audit_logs": {
       "schema": "AuditLog",
       "description": "System audit logs for transparency"
+    },
+    "passengers_history": {
+      "schema": "PassengerHistory",
+      "description": "Historical autocomplete passenger indexes"
     }
   }
 }

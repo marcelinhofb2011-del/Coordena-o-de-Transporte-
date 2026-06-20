@@ -27,10 +27,15 @@ import {
 import { db } from '../services/firebase';
 import { Reservation, Bus, Congregation, UserRole, PaymentStatus } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { useEvent } from '../contexts/EventContext';
 import { cn, formatCurrency, formatDate } from '../lib/utils';
 
 const ReportsView: React.FC = () => {
   const { appUser } = useAuth();
+  const { selectedEventId, events } = useEvent();
+  
+  const currentEvent = events.find(e => e.id === selectedEventId);
+  const currentEventName = selectedEventId === 'all' ? 'Balanço Geral Consolidado' : (currentEvent ? currentEvent.name : 'Fechamento de Evento');
   
   // Base State
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -99,7 +104,10 @@ const ReportsView: React.FC = () => {
         const timeB = b.createdAt?.seconds || 0;
         return timeB - timeA;
       });
-      setReservations(data);
+      const filteredRes = selectedEventId === 'all'
+        ? data
+        : data.filter(r => (r.eventId || 'default-congress-2026') === selectedEventId);
+      setReservations(filteredRes);
       setLoading(false);
     }, (error) => {
       console.error("Error loading reporting reservations:", error);
@@ -115,7 +123,7 @@ const ReportsView: React.FC = () => {
     });
 
     return () => { unsubRes(); unsubB(); unsubC(); };
-  }, [appUser]);
+  }, [appUser, selectedEventId]);
 
   // Apply Search and Filters
   const filtered = reservations.filter(res => {
@@ -299,7 +307,8 @@ const ReportsView: React.FC = () => {
       });
 
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
-      pdf.save(`Demonstrativo_Financeiro_Fechamento_${new Date().toISOString().split('T')[0]}.pdf`);
+      const safeEventName = currentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      pdf.save(`Demonstrativo_Financeiro_Fechamento_${safeEventName}_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Erro ao gerar PDF profissional:', error);
     } finally {
@@ -328,7 +337,8 @@ const ReportsView: React.FC = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `Demonstrativo_Financeiro_${new Date().toISOString().split('T')[0]}.csv`);
+    const safeEventName = currentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    link.setAttribute('download', `Demonstrativo_Financeiro_${safeEventName}_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -346,18 +356,23 @@ const ReportsView: React.FC = () => {
           {/* Print only brand title */}
           <div className="hidden print:block mb-4 text-center border-b-2 border-slate-900 pb-4">
             <h2 className="text-xl font-bold tracking-tight uppercase">Sistema de Gestão de Transportes e Frotas</h2>
-            <h1 className="text-2xl font-black uppercase tracking-wider text-slate-900 mt-1">Demonstrativo Financeiro de Fechamento</h1>
-            <p className="text-xs text-slate-500 font-mono mt-1">Conferência de Caixa, Depósitos e Valores Ativos • Emissão: {new Date().toLocaleString('pt-BR')}</p>
+            <h1 className="text-2xl font-black uppercase tracking-wider text-slate-900 mt-1">Demonstrativo Financeiro: {currentEventName}</h1>
+            <p className="text-xs text-slate-500 font-mono mt-1">Conferência Financeira de Reservas de Transporte • Emissão: {new Date().toLocaleString('pt-BR')}</p>
           </div>
           
           <span className="text-[10px] font-black tracking-widest text-[#0067b8] dark:text-blue-400 uppercase font-mono print:hidden">
-            Área de Auditoria e Tesouraria
+            Área de Controle Financeiro
           </span>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight leading-none mt-1 print:hidden">
-            Demonstrativo Financeiro
-          </h1>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1 print:hidden">
+            <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight leading-none">
+              Demonstrativo Financeiro
+            </h1>
+            <span className="inline-block self-start sm:self-center px-1.5 py-0.5 text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/60 rounded">
+              {currentEventName}
+            </span>
+          </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1.5 print:hidden">
-            Relatório de auditoria para confrontar valores físicos coletados com registros no sistema.
+            Relatório financeiro para confrontar valores de passagens coletados com registros no sistema.
           </p>
           {/* Informational helpful tip */}
           <div className="mt-2 text-[11px] text-[#0067b8] dark:text-blue-400 font-semibold print:hidden flex items-center gap-1.5">
@@ -693,7 +708,7 @@ const ReportsView: React.FC = () => {
           >
             <span className="flex items-center gap-1.5">
               <Wallet size={13} />
-              Forma de Caixa ({methodGrouped.length})
+              Forma de Pagto ({methodGrouped.length})
             </span>
           </button>
         </div>
@@ -986,21 +1001,21 @@ const ReportsView: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-sans">
-              O preenchimento deste termo serve para formalizar a entrega de contas físicas e depósitos perante o tesoureiro responsável.
-              Escreva quaisquer anotações de auditoria no campo abaixo (ex: descontos de taxas Pix, envelopes físicos de dinheiro pendentes, depósitos identificados por extratos do banco).
+              O preenchimento deste termo serve para formalizar a conferência de valores de passagens perante os responsáveis pelo transporte.
+              Escreva quaisquer anotações financeiras no campo abaixo (ex: observações de taxas, descontos, ou depósitos identificados).
             </p>
 
             <div className="space-y-1.5 font-medium">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">Notas de Conferência do Caixa</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">Notas de Conferência de Valores</label>
               <textarea
                 value={auditNotes}
                 onChange={e => setAuditNotes(e.target.value)}
-                placeholder="Insira notas de rodapé do balanço (Ex: Coleta do Pix realizada integralmente pela congregação X e depositado no Banco Y em 05/06...)"
+                placeholder="Insira notas de rodapé do balanço (Ex: Valores de Pix recebidos e conferidos para as congregações em 05/06...)"
                 rows={3}
                 className="w-full bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 p-2.5 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none rounded-xs font-sans print:hidden pdf-hide"
               />
               <div className="hidden print:block pdf-show p-2.5 min-h-[80px] bg-slate-50/50 dark:bg-slate-950/25 border border-slate-200 dark:border-slate-800 text-xs font-sans whitespace-pre-wrap text-slate-800 dark:text-slate-100 rounded-sm">
-                {auditNotes || "Nenhuma observação inserida para este fechamento de caixa."}
+                {auditNotes || "Nenhuma observação inserida para este fechamento financeiro de reservas."}
               </div>
             </div>
           </div>

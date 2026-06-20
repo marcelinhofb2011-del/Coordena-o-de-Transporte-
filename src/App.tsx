@@ -17,12 +17,14 @@ import AuditLogsView from './views/AuditLogsView';
 import UsersView from './views/UsersView';
 import SettingsView from './views/SettingsView';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { EventProvider, useEvent } from './contexts/EventContext';
 import { UserRole } from './types';
 import NotificationBell from './components/NotificationBell';
 
 function AppContent() {
   const { appUser, user, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { events, selectedEventId, setSelectedEventId } = useEvent();
   const [currentTab, setCurrentTab] = useState(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -115,20 +117,41 @@ function AppContent() {
         {/* Header - Minimal and fluid */}
         <header className="px-6 py-3 md:px-8 bg-white dark:bg-slate-900 border-b border-[#e5e5e5] dark:border-slate-800 print:hidden transition-colors duration-300">
           <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0 mr-4">
               <button 
                 onClick={() => setSidebarOpen(true)}
                 className="lg:hidden p-2 text-[#1b1b1b] dark:text-white hover:bg-[#f2f2f2] dark:hover:bg-slate-800 rounded-sm transition-all active:scale-95 border border-[#e5e5e5] dark:border-slate-700"
               >
                 <Menu size={18} />
               </button>
-              <h2 className="text-xs font-bold text-[#1b1b1b] dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <h2 className="text-xs font-bold text-[#1b1b1b] dark:text-white uppercase tracking-wider hidden sm:flex items-center gap-2 shrink-0">
                 <span className="text-[#0067b8] dark:text-blue-400">COORDENAÇÃO</span>
                 <span className="text-[#707070] dark:text-slate-400 font-normal">| TRANSPORTE</span>
               </h2>
+
+              {/* Event Selector - Global Filter (Moved to the left) */}
+              {events.length > 0 && (
+                <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 border border-[#e5e5e5] dark:border-slate-700 px-3 py-1.5 rounded-sm shadow-sm transition-colors max-w-[150px] sm:max-w-[210px] md:max-w-[260px] min-w-0">
+                  <span className="text-xs shrink-0" title="Evento de Trabalho Selecionado">📅</span>
+                  <select
+                    className="bg-transparent font-bold text-[10px] md:text-xs text-slate-700 dark:text-slate-200 outline-none pr-1 w-full truncate cursor-pointer font-sans"
+                    value={selectedEventId}
+                    onChange={(e) => setSelectedEventId(e.target.value)}
+                  >
+                    <option value="all" className="dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-bold">
+                      ✨ Todos os Eventos (Geral)
+                    </option>
+                    {events.map((evt) => (
+                      <option key={evt.id} value={evt.id} className="dark:bg-slate-900 text-slate-800 dark:text-slate-100">
+                        {evt.name} {evt.active ? '(Ativo)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
               <button 
                 onClick={toggleTheme}
                 className="p-2 text-[#707070] dark:text-slate-400 hover:bg-[#f2f2f2] dark:hover:bg-slate-800 rounded-sm transition-all"
@@ -177,7 +200,9 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <EventProvider>
+        <AppContent />
+      </EventProvider>
     </ThemeProvider>
   );
 }

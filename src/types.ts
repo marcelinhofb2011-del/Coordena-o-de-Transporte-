@@ -43,6 +43,7 @@ export interface Bus {
 
 export interface Reservation {
   id: string;
+  eventId?: string;
   passengers: Passenger[];
   notes: string;
   busId: string;
