@@ -13,6 +13,14 @@ export interface AppEvent {
   assemblyDay?: string;
 }
 
+export interface CountdownConfig {
+  active: boolean;
+  title: string;
+  targetDate: string;
+  image: string;
+  liberated: boolean;
+}
+
 interface EventContextType {
   events: AppEvent[];
   activeEventId: string;
@@ -23,6 +31,8 @@ interface EventContextType {
   updateEvent: (id: string, name: string, ticketPrice: number, dailyPrices: { [day: string]: number }, eventType?: 'congresso' | 'assembleia', assemblyDay?: string) => Promise<void>;
   setActiveEvent: (id: string) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
+  countdownConfig: CountdownConfig;
+  updateCountdownConfig: (config: Partial<CountdownConfig>) => Promise<void>;
 }
 
 const EventContext = createContext<EventContextType>({
@@ -34,7 +44,9 @@ const EventContext = createContext<EventContextType>({
   addEvent: async () => {},
   updateEvent: async () => {},
   setActiveEvent: async () => {},
-  deleteEvent: async () => {}
+  deleteEvent: async () => {},
+  countdownConfig: { active: false, title: '', targetDate: '', image: '', liberated: false },
+  updateCountdownConfig: async () => {}
 });
 
 export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -42,11 +54,30 @@ export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeEventId, setActiveEventId] = useState<string>('default-congress-2026');
   const [selectedEventId, setSelectedEventId] = useState<string>('default-congress-2026');
   const [loadingEvents, setLoadingEvents] = useState(true);
+  const [countdownConfig, setCountdownConfig] = useState<CountdownConfig>({
+    active: false,
+    title: '',
+    targetDate: '',
+    image: '',
+    liberated: false
+  });
 
   useEffect(() => {
     const docRef = doc(db, 'settings', 'global');
     const unsub = onSnapshot(docRef, async (snap) => {
       let data = snap.data();
+      
+      if (data && data.countdownConfig) {
+        setCountdownConfig(data.countdownConfig);
+      } else {
+        setCountdownConfig({
+          active: false,
+          title: '',
+          targetDate: '',
+          image: '',
+          liberated: false
+        });
+      }
       
       // If global settings don't exist, this initialization will be written on demand when an admin accesses settings or on startup if empty
       if (!data || !data.events || data.events.length === 0) {
@@ -212,6 +243,16 @@ export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await setDoc(docRef, { events: updatedEvents }, { merge: true });
   };
 
+  const updateCountdownConfig = async (newConfig: Partial<CountdownConfig>) => {
+    const docRef = doc(db, 'settings', 'global');
+    const updated = {
+      ...countdownConfig,
+      ...newConfig
+    };
+    await setDoc(docRef, { countdownConfig: updated }, { merge: true });
+    setCountdownConfig(updated);
+  };
+
   return (
     <EventContext.Provider value={{
       events,
@@ -222,7 +263,9 @@ export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addEvent,
       updateEvent,
       setActiveEvent,
-      deleteEvent
+      deleteEvent,
+      countdownConfig,
+      updateCountdownConfig
     }}>
       {children}
     </EventContext.Provider>

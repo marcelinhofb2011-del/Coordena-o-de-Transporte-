@@ -20,11 +20,12 @@ import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { EventProvider, useEvent } from './contexts/EventContext';
 import { UserRole } from './types';
 import NotificationBell from './components/NotificationBell';
+import { CountdownView } from './components/CountdownView';
 
 function AppContent() {
   const { appUser, user, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { events, selectedEventId, setSelectedEventId } = useEvent();
+  const { events, selectedEventId, setSelectedEventId, countdownConfig, updateCountdownConfig } = useEvent();
   const [currentTab, setCurrentTab] = useState(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -60,6 +61,25 @@ function AppContent() {
 
   if (!user) {
     return <LoginView />;
+  }
+
+  // Lógica de bloqueio por contagem regressiva da programação
+  const isCountdownBlocked = (() => {
+    if (!countdownConfig?.active) return false;
+    if (countdownConfig?.liberated) return false;
+    if (appUser?.role === UserRole.ADMIN) return false; // Administrador bypassa o bloqueio
+    
+    try {
+      const target = new Date(countdownConfig.targetDate).getTime();
+      const now = new Date().getTime();
+      return now < target;
+    } catch {
+      return false;
+    }
+  })();
+
+  if (isCountdownBlocked && countdownConfig) {
+    return <CountdownView config={countdownConfig} />;
   }
 
   // Lógica de bloqueio para usuários não vinculados
@@ -114,6 +134,21 @@ function AppContent() {
       />
 
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative">
+        {countdownConfig && countdownConfig.active && !countdownConfig.liberated && appUser?.role === UserRole.ADMIN && (
+          <div className="bg-amber-500 text-slate-950 px-4 py-2 text-[11px] font-black flex flex-col sm:flex-row items-center justify-between gap-1 border-b border-amber-600 shadow-sm print:hidden select-none shrink-0">
+            <span className="flex items-center gap-1.5 font-bold">
+              <span>⚠️</span>
+              <span className="uppercase tracking-wider">Modo Contagem Regressiva Ativo:</span>
+              <span className="font-semibold text-slate-900">O sistema está bloqueado para usuários comuns até o fim do cronograma.</span>
+            </span>
+            <button
+              onClick={() => updateCountdownConfig({ liberated: true })}
+              className="bg-slate-950 hover:bg-slate-900 text-white px-2.5 py-1 rounded text-[9px] font-black tracking-wider transition-all uppercase shrink-0 active:scale-95 shadow-md"
+            >
+              Liberar Sistema Manualmente
+            </button>
+          </div>
+        )}
         {/* Header - Minimal and fluid */}
         <header className="px-6 py-3 md:px-8 bg-white dark:bg-slate-900 border-b border-[#e5e5e5] dark:border-slate-800 print:hidden transition-colors duration-300">
           <div className="flex items-center justify-between h-14">

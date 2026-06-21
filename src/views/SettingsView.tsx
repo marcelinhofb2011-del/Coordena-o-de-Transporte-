@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { Save, DollarSign, Shield, Calendar, Plus, X } from 'lucide-react';
+import { Save, DollarSign, Shield, Calendar, Plus, X, Clock, Upload, Trash2, CheckCircle } from 'lucide-react';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useEvent } from '../contexts/EventContext';
@@ -8,7 +8,7 @@ import { UserRole } from '../types';
 
 const SettingsView: React.FC = () => {
   const { appUser } = useAuth();
-  const { events, activeEventId, addEvent, updateEvent, setActiveEvent, deleteEvent } = useEvent();
+  const { events, activeEventId, addEvent, updateEvent, setActiveEvent, deleteEvent, countdownConfig, updateCountdownConfig } = useEvent();
   
   // Active pricing states
   const [ticketPrice, setTicketPrice] = useState<number>(0);
@@ -52,6 +52,77 @@ const SettingsView: React.FC = () => {
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
 
   const [activePriceMode, setActivePriceMode] = useState<'unico' | 'diario'>('diario');
+
+  // Estados da Contagem Regressiva / Programação de Lançamento
+  const [countdownActive, setCountdownActive] = useState(false);
+  const [countdownTitle, setCountdownTitle] = useState('');
+  const [countdownTargetDate, setCountdownTargetDate] = useState('');
+  const [countdownImage, setCountdownImage] = useState('');
+  const [countdownLiberated, setCountdownLiberated] = useState(false);
+  const [savingCountdown, setSavingCountdown] = useState(false);
+  const [countdownSuccess, setCountdownSuccess] = useState(false);
+
+  useEffect(() => {
+    if (countdownConfig) {
+      setCountdownActive(countdownConfig.active || false);
+      setCountdownTitle(countdownConfig.title || '');
+      setCountdownTargetDate(countdownConfig.targetDate || '');
+      setCountdownImage(countdownConfig.image || '');
+      setCountdownLiberated(countdownConfig.liberated || false);
+    }
+  }, [countdownConfig]);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 600;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+          setCountdownImage(compressedDataUrl);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveCountdown = async () => {
+    setSavingCountdown(true);
+    try {
+      await updateCountdownConfig({
+        active: countdownActive,
+        title: countdownTitle.trim(),
+        targetDate: countdownTargetDate,
+        image: countdownImage,
+        liberated: countdownLiberated
+      });
+      setCountdownSuccess(true);
+      setTimeout(() => setCountdownSuccess(false), 3000);
+    } catch (err) {
+      console.error("Erro ao salvar programação:", err);
+    } finally {
+      setSavingCountdown(false);
+    }
+  };
 
   const activeEvent = events.find(e => e.id === activeEventId);
   const isActiveAssembleia = activeEvent?.eventType === 'assembleia';
@@ -342,6 +413,140 @@ const SettingsView: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* CARTÃO: Contagem Regressiva e Bloqueio de Inscrições */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md bg-amber-50 dark:bg-amber-950/25 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <Clock size={14} />
+              </div>
+              <div>
+                <h2 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Cronograma de Lançamento</h2>
+                <p className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold leading-none mt-0.5">
+                  Programe abertura de inscrições com contagem regressiva
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3.5 pt-1">
+              {/* Ativar/Desativar */}
+              <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-100 dark:border-slate-800">
+                <div className="space-y-0.5">
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Ativar Tela de Bloqueio</label>
+                  <p className="text-[8px] text-slate-400 dark:text-slate-500 font-medium leading-tight">
+                    Bloqueia o sistema para congregações até o cronômetro zerar
+                  </p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={countdownActive}
+                  onChange={(e) => setCountdownActive(e.target.checked)}
+                  className="w-4 h-4 accent-indigo-600 rounded cursor-pointer"
+                />
+              </div>
+
+              {countdownActive && (
+                <div className="space-y-3 animate-fadeIn">
+                  {/* Título do Evento */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider ml-0.5 block">Nome do Evento</label>
+                    <input 
+                      type="text"
+                      className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg outline-none text-[11px] font-bold text-slate-900 dark:text-white focus:border-indigo-500 transition-all font-sans"
+                      placeholder="Ex: Assembleia de Circuito - Sábado"
+                      value={countdownTitle}
+                      onChange={(e) => setCountdownTitle(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Data de Lançamento */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider ml-0.5 block font-sans">Data e Hora de Abertura</label>
+                    <input 
+                      type="datetime-local"
+                      className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg outline-none text-[11px] font-bold text-slate-900 dark:text-white focus:border-indigo-500 transition-all font-sans"
+                      value={countdownTargetDate}
+                      onChange={(e) => setCountdownTargetDate(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Upload da Imagem */}
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider ml-0.5 block">Imagem do Lançamento (Não gasta Firebase Storage)</label>
+                    
+                    {countdownImage ? (
+                      <div className="relative border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-950 aspect-video group">
+                        <img 
+                          src={countdownImage} 
+                          alt="Layout de lançamento" 
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setCountdownImage('')}
+                          className="absolute top-2 right-2 bg-red-650 hover:bg-red-700 text-white p-1.5 rounded-full shadow transition-colors cursor-pointer"
+                          title="Remover Imagem"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-slate-700 rounded-lg p-5 flex flex-col items-center justify-center gap-1.5 cursor-pointer bg-slate-50 dark:bg-slate-950/30 text-slate-400 hover:text-indigo-500 transition-all select-none">
+                        <Upload size={18} />
+                        <span className="text-[10px] font-black uppercase tracking-wider">Carregar Imagem Local</span>
+                        <span className="text-[8px] text-slate-400/80">Arraste ou selecione (JPG/PNG ideal)</span>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleImageUpload} 
+                          className="hidden" 
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Forçar Liberação Manual do Administrador */}
+                  <div className="flex items-center justify-between p-2 pb-1 text-[11px] leading-tight bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-100 dark:border-slate-800 mt-2">
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">Liberar Sistema Manualmente</span>
+                      <p className="text-[8px] text-slate-450 font-medium">Ignore a data e libere o acesso aos demais imediatamente</p>
+                    </div>
+                    <input 
+                      type="checkbox" 
+                      checked={countdownLiberated}
+                      onChange={(e) => setCountdownLiberated(e.target.checked)}
+                      className="w-4 h-4 accent-indigo-600 rounded cursor-pointer animate-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Botão de Gravação do Cronograma */}
+              <div className="pt-2 border-t border-slate-150 dark:border-slate-800 flex items-center justify-between gap-2">
+                {countdownSuccess && (
+                  <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1 animate-pulse">
+                    <CheckCircle size={11} /> Configuração Gravada!
+                  </span>
+                )}
+                <button
+                  type="button"
+                  disabled={savingCountdown}
+                  onClick={handleSaveCountdown}
+                  className="ml-auto px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[9px] uppercase tracking-wider rounded transition-all shadow-xs disabled:opacity-50 inline-flex items-center gap-1 cursor-pointer"
+                >
+                  {savingCountdown ? (
+                    <div className="w-3 h-3 border border-white/20 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Save size={10} />
+                      <span>Gravar Programação</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
