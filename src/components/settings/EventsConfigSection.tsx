@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Plus, X, Trash2 } from 'lucide-react';
+import { Calendar, Plus, X, Trash2, Eye, EyeOff, Layers } from 'lucide-react';
 import { useEvent } from '../../contexts/EventContext';
 
 export const EventsConfigSection: React.FC = () => {
@@ -11,6 +11,10 @@ export const EventsConfigSection: React.FC = () => {
     setActiveEvent, 
     deleteEvent 
   } = useEvent();
+
+  // Filter and Clean View States
+  const [filterType, setFilterType] = useState<'all' | 'congresso' | 'assembleia'>('all');
+  const [hideInactive, setHideInactive] = useState<boolean>(false);
 
   // New Event Form States
   const [newEventName, setNewEventName] = useState('');
@@ -41,30 +45,108 @@ export const EventsConfigSection: React.FC = () => {
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // Filter events based on active tab & clean mode toggle
+  const filteredEvents = events.filter((evt) => {
+    const isAssembleia = evt.eventType === 'assembleia';
+    if (filterType === 'congresso' && isAssembleia) return false;
+    if (filterType === 'assembleia' && !isAssembleia) return false;
+    if (hideInactive && evt.id !== activeEventId) return false;
+    return true;
+  });
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fadeIn">
       {/* Event List - Span 7 */}
       <div className="lg:col-span-7 space-y-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="p-4 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-100 dark:border-slate-850 flex items-center justify-between">
-            <div>
-              <h2 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Lista de Eventos Cadastrados</h2>
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold leading-none mt-0.5">
-                Selecione qual evento receberá novas reservas e configure tarifas
-              </p>
+          <div className="p-4 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-100 dark:border-slate-850">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Lista de Eventos Cadastrados</h2>
+                <p className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold leading-none mt-0.5">
+                  Selecione qual evento receberá novas reservas e configure tarifas
+                </p>
+              </div>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-mono self-start sm:self-center">
+                Exibindo: {filteredEvents.length} de {events.length}
+              </span>
             </div>
-            <span className="text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-mono">
-              Total: {events.length}
-            </span>
+
+            {/* Filter and clean options bar */}
+            <div className="mt-3.5 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* Event Type Filter Tabs */}
+              <div className="flex bg-slate-100 dark:bg-slate-950 p-0.5 rounded-lg border border-slate-200 dark:border-slate-850 max-w-fit">
+                <button
+                  type="button"
+                  onClick={() => setFilterType('all')}
+                  className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded transition-all cursor-pointer ${
+                    filterType === 'all'
+                      ? 'bg-[#8B5A2B] text-white shadow-sm font-black'
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                  }`}
+                >
+                  Todos ({events.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterType('congresso')}
+                  className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded transition-all cursor-pointer ${
+                    filterType === 'congresso'
+                      ? 'bg-[#8B5A2B] text-white shadow-sm font-black'
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                  }`}
+                >
+                  Congressos ({events.filter(e => e.eventType !== 'assembleia').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterType('assembleia')}
+                  className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded transition-all cursor-pointer ${
+                    filterType === 'assembleia'
+                      ? 'bg-[#8B5A2B] text-white shadow-sm font-black'
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                  }`}
+                >
+                  Assembleias ({events.filter(e => e.eventType === 'assembleia').length})
+                </button>
+              </div>
+
+              {/* Clean View Toggle */}
+              <button
+                type="button"
+                onClick={() => setHideInactive(!hideInactive)}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  hideInactive
+                    ? 'bg-[#8B5A2B]/10 border-[#8B5A2B]/30 text-[#8B5A2B] dark:text-[#d2b48c]'
+                    : 'bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 border-slate-250 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+                }`}
+                title="Deixar a tela limpa ocultando cartões inativos"
+              >
+                {hideInactive ? (
+                  <>
+                    <EyeOff size={11} className="text-[#8B5A2B]" />
+                    <span>Mostrar Todos</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye size={11} className="text-slate-400" />
+                    <span>Ocultar Inativos</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {events.length === 0 ? (
+            {filteredEvents.length === 0 ? (
               <div className="p-8 text-center text-slate-450 dark:text-slate-500 text-[11px] font-medium uppercase tracking-wider">
-                Nenhum evento cadastrado no sistema.
+                {hideInactive 
+                  ? "Nenhum evento ativo corresponde aos filtros selecionados." 
+                  : "Nenhum evento cadastrado correspondente a esta categoria."
+                }
               </div>
             ) : (
-              events.map((evt) => {
+              filteredEvents.map((evt) => {
                 const isEditing = editingEventId === evt.id;
                 const isDeleting = deletingEventId === evt.id;
 
